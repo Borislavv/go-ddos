@@ -1,9 +1,9 @@
-package app
+package ddos
 
 import (
 	"context"
-	"ddos/internal/ddos/domain/service"
-	"ddos/internal/display/app"
+	service "ddos/internal/ddos/domain/service"
+	display "ddos/internal/display/app"
 	"github.com/caarlos0/env/v9"
 	"log"
 	"sync"
@@ -11,16 +11,16 @@ import (
 )
 
 type DDOS struct {
-	ctx    context.Context
-	cfg    *Config
-	dataCh chan *app.Data
+	ctx     context.Context
+	cfg     *Config
+	display *display.Display
 }
 
-func NewDDOS(ctx context.Context, dataCh chan *app.Data) *DDOS {
+func New(ctx context.Context, display *display.Display) *DDOS {
 	return &DDOS{
-		ctx:    ctx,
-		cfg:    &Config{},
-		dataCh: dataCh,
+		ctx:     ctx,
+		cfg:     &Config{},
+		display: display,
 	}
 }
 
@@ -37,7 +37,7 @@ func (app *DDOS) Run(mwg *sync.WaitGroup) {
 	}
 	defer cancel()
 
-	f := service.NewFlooder(ctx, app.cfg.RPC, app.cfg.Workers, app.dataCh)
+	f := service.NewFlooder(ctx, app.cfg.RPC, app.cfg.Workers, app.display)
 
 	f.Run()
 }
