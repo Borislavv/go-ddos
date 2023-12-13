@@ -1,8 +1,9 @@
-package service
+package ddosservice
 
 import (
 	"context"
-	"ddos/internal/display/app"
+	display "ddos/internal/display/app"
+	displaymodel "ddos/internal/display/domain/model"
 	"fmt"
 	"io"
 	"log"
@@ -21,7 +22,7 @@ type Flooder struct {
 
 	// todo вынести
 	displayCh chan string
-	dataCh    chan *app.Data
+	display   *display.Display
 
 	// todo вынести
 	total   int64
@@ -29,14 +30,14 @@ type Flooder struct {
 	failed  int64
 }
 
-func NewFlooder(ctx context.Context, rpc int, workers int, dataCh chan *app.Data) *Flooder {
+func NewFlooder(ctx context.Context, rpc int, workers int, display *display.Display) *Flooder {
 	return &Flooder{
 		mu:        &sync.RWMutex{},
 		ctx:       ctx,
 		rpc:       rpc,
 		workers:   workers,
 		displayCh: make(chan string, 1000),
-		dataCh:    dataCh,
+		display:   display,
 	}
 }
 
@@ -86,15 +87,21 @@ func (f *Flooder) Run() {
 				}
 			default:
 				rpc := int(float64(f.total) / time.Since(s).Seconds())
-				f.dataCh <- &app.Data{
-					CurrentDuration:        time.Since(s),
-					TargetRPC:              f.rpc,
-					CurrentRPC:             rpc,
-					CurrentWorkers:         w,
-					CurrentTotalRequests:   f.total,
-					CurrentFailedRequests:  f.failed,
-					CurrentSuccessRequests: f.success,
-				}
+				f.display.Draw(
+					&displaymodel.Table{
+						Header: []string{"duration", "rpc", "workers", "total reqs.", "success reqs.", "failed reqs."},
+						Rows: [][]string{
+							{
+								time.Since(s).String(),
+								fmt.Sprintf("%d", rpc),
+								fmt.Sprintf("%d", w),
+								fmt.Sprintf("%d", f.total),
+								fmt.Sprintf("%d", f.success),
+								fmt.Sprintf("%d", f.failed),
+							},
+						},
+					},
+				)
 				time.Sleep(time.Millisecond * 100)
 			}
 		}
@@ -141,15 +148,15 @@ func (f *Flooder) sendRequest() {
 	defer func() { _ = resp.Body.Close() }()
 
 	atomic.AddInt64(&f.success, 1)
-	//data, err := io.ReadAll(resp.Body)
-	//if err != nil {
-	//	f.print(err.Error())
-	//	return
-	//}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		f.print(err.Error())
+		return
+	}
 
-	//f.print(string(data))
+	f.print(string(data))
 
-	_, _ = io.Copy(io.Discard, resp.Body)
+	//_, _ = io.Copy(io.Discard, resp.Body)
 }
 
 func (f *Flooder) print(msg string) {
