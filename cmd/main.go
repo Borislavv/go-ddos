@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"ddos/internal/ddos/app"
-	app2 "ddos/internal/display/app"
+	display "ddos/internal/display/app"
 	"log"
 	"os"
 	"os/signal"
@@ -20,11 +20,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer wg.Wait()
 
-	dataCh := make(chan *app2.Data, 1000)
+	di := display.New(ctx)
+	dd := ddos.New(ctx, di)
 
 	wg.Add(2)
-	go app.NewDDOS(ctx, dataCh).Run(wg)
-	go app2.NewDisplay(ctx, dataCh).Run(wg)
+	go di.Run(wg)
+	go dd.Run(wg)
 
 	log.Println("awaiting ctrl+c")
 	<-exit
