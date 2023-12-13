@@ -1,4 +1,4 @@
-package app
+package ddos
 
 type Config struct {
 	RPC      int    `env:"RPC" envDefault:"100"`
