@@ -135,7 +135,7 @@ func (f *Flooder) sendRequest() {
 	atomic.AddInt64(&f.total, 1)
 	if err != nil || resp.StatusCode != 200 {
 		atomic.AddInt64(&f.failed, 1)
-		log.Println(err)
+		log.Println(err, resp.StatusCode)
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
