@@ -15,116 +15,106 @@ import (
 )
 
 type Flooder struct {
-	mu      *sync.RWMutex
-	ctx     context.Context
+	mu  *sync.RWMutex
+	ctx context.Context
+
+	// settings
 	rpc     int
 	workers int
 
-	// todo вынести
-	displayCh chan string
-	display   *display.Display
+	// dependencies
+	display *display.Display
 
-	// todo вынести
-	total   int64
-	success int64
-	failed  int64
+	// metrics
+	total   int64     // number of total reqs.
+	success int64     // number of success reqs.
+	failed  int64     // number of failed reqs.
+	actwks  int64     // number of active workers
+	started time.Time // time of the ddos started
 }
 
 func NewFlooder(ctx context.Context, rpc int, workers int, display *display.Display) *Flooder {
 	return &Flooder{
-		mu:        &sync.RWMutex{},
-		ctx:       ctx,
-		rpc:       rpc,
-		workers:   workers,
-		displayCh: make(chan string, 1000),
-		display:   display,
+		mu:      &sync.RWMutex{},
+		ctx:     ctx,
+		rpc:     rpc,
+		workers: workers,
+		display: display,
 	}
 }
 
 func (f *Flooder) Run() {
-	s := time.Now()
-
-	t := time.NewTicker(time.Second / time.Duration(float64(f.rpc)*1.20))
-	defer t.Stop()
-
-	rand.Seed(time.Now().UnixNano())
-
-	dwg := &sync.WaitGroup{}
-	dwg.Add(1)
-	go f.handleDisplayer(dwg)
-	defer dwg.Wait()
-	defer close(f.displayCh)
+	f.started = time.Now()
 
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 
-	// init default number of workers
-	w := int64(1)
-	wg.Add(f.workers)
-	for ; w <= int64(f.workers); w++ {
-		f.spawn(w, wg, s, t)
-	}
-
 	wg.Add(1)
 	go func() {
-		spawnTicker := time.NewTicker(time.Millisecond * 100)
 		defer wg.Done()
-		defer spawnTicker.Stop()
-		//f.print("start spawning a new threads")
+
+		requestSendTicker := time.NewTicker(time.Second / time.Duration(float64(f.rpc)*1.10))
+		defer requestSendTicker.Stop()
+
+		threadSpawnTicker := time.NewTicker(time.Millisecond * 50)
+		defer threadSpawnTicker.Stop()
+
 		for {
+			crpc := int(float64(atomic.LoadInt64(&f.total)) / time.Since(f.started).Seconds())
+
 			select {
 			case <-f.ctx.Done():
-				//f.print("spawning new treads was stopped!")
 				return
-			case <-spawnTicker.C:
-				rpc := int(float64(f.total) / time.Since(s).Seconds())
-				if rpc < int(float64(f.rpc)*0.95) && w < 1000 {
-					//f.print(fmt.Sprintf("current RPC: %d, target RPC: %d", rpc, f.rpc))
-					wg.Add(1)
-					f.spawn(atomic.AddInt64(&w, 1), wg, s, t)
-				} else {
-					//f.print(fmt.Sprintf("current RPC: %d, target RPC: %d", rpc, f.rpc))
+			case <-threadSpawnTicker.C:
+				trpc := int(float64(f.rpc) * 0.95)
+				if crpc < trpc && f.actwks < 1000 {
+					f.spawnThread(wg, requestSendTicker)
+
+					atomic.AddInt64(&f.actwks, 1)
 				}
 			default:
-				rpc := int(float64(f.total) / time.Since(s).Seconds())
-				f.display.Draw(
-					&displaymodel.Table{
-						Header: []string{"duration", "rpc", "workers", "total reqs.", "success reqs.", "failed reqs."},
-						Rows: [][]string{
-							{
-								time.Since(s).String(),
-								fmt.Sprintf("%d", rpc),
-								fmt.Sprintf("%d", w),
-								fmt.Sprintf("%d", f.total),
-								fmt.Sprintf("%d", f.success),
-								fmt.Sprintf("%d", f.failed),
-							},
-						},
-					},
-				)
+				f.sendStat(crpc)
+
 				time.Sleep(time.Millisecond * 100)
 			}
 		}
 	}()
 }
 
-func (f *Flooder) spawn(w int64, wg *sync.WaitGroup, s time.Time, t *time.Ticker) {
+func (f *Flooder) sendStat(crpc int) {
+	f.display.Draw(
+		&displaymodel.Table{
+			Header: []string{
+				"duration",
+				"rpc",
+				"workers",
+				"total reqs.",
+				"success reqs.",
+				"failed reqs.",
+			},
+			Rows: [][]string{
+				{
+					time.Since(f.started).String(),
+					fmt.Sprintf("%d", crpc),
+					fmt.Sprintf("%d", atomic.LoadInt64(&f.actwks)),
+					fmt.Sprintf("%d", atomic.LoadInt64(&f.total)),
+					fmt.Sprintf("%d", atomic.LoadInt64(&f.success)),
+					fmt.Sprintf("%d", atomic.LoadInt64(&f.failed)),
+				},
+			},
+		},
+	)
+}
+
+func (f *Flooder) spawnThread(wg *sync.WaitGroup, requestSendTicker *time.Ticker) {
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		//f.print(fmt.Sprintf("spawned %d worker", w))
 		for {
 			select {
 			case <-f.ctx.Done():
-				//f.mu.RLock()
-				//f.print(
-				//	fmt.Sprintf(
-				//		"total: %d, success: %d, failed: %d, duration: %s",
-				//		f.total, f.success, f.failed, time.Since(s).String(),
-				//	),
-				//)
-				//f.mu.RUnlock()
 				return
-			case <-t.C:
+			case <-requestSendTicker.C:
 				f.sendRequest()
 			}
 		}
@@ -132,6 +122,8 @@ func (f *Flooder) spawn(w int64, wg *sync.WaitGroup, s time.Time, t *time.Ticker
 }
 
 func (f *Flooder) sendRequest() {
+	rand.Seed(time.Now().UnixNano())
+
 	url := fmt.Sprintf(
 		"https://seo-php-swoole.lux.kube.xbet.lan/api/v1/pagedata?group_id=285&u"+
 			"rl=php-swoole-test-domain.com/fr&geo=by&language=fr&project[id]=285&domain=php-swoo"+
@@ -143,29 +135,12 @@ func (f *Flooder) sendRequest() {
 	atomic.AddInt64(&f.total, 1)
 	if err != nil || resp.StatusCode != 200 {
 		atomic.AddInt64(&f.failed, 1)
+		log.Println(err)
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	atomic.AddInt64(&f.success, 1)
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		f.print(err.Error())
-		return
-	}
 
-	f.print(string(data))
-
-	//_, _ = io.Copy(io.Discard, resp.Body)
-}
-
-func (f *Flooder) print(msg string) {
-	f.displayCh <- msg
-}
-
-func (f *Flooder) handleDisplayer(wg *sync.WaitGroup) {
-	defer wg.Done()
-	for msg := range f.displayCh {
-		log.Println(msg)
-	}
+	_, _ = io.Copy(io.Discard, resp.Body)
 }
