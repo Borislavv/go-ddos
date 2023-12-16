@@ -37,6 +37,7 @@ func (d *Display) Run(mwg *sync.WaitGroup) {
 	if err != nil {
 		panic(err)
 	}
+	defer termbox.Close()
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -50,43 +51,63 @@ func (d *Display) draw(wg *sync.WaitGroup) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"duration", "rpc", "workers", "total reqs.", "success reqs.", "failed reqs."})
 
-	for {
-		select {
-		case <-d.ctx.Done():
-			termbox.Close()
-			return
-		case data := <-d.dataCh:
-			if err := termbox.Clear(termbox.ColorDefault, termbox.ColorDefault); err != nil {
-				log.Fatalln(err)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-d.ctx.Done():
+				return
+			default:
+				switch ev := termbox.PollEvent(); ev.Type {
+				case termbox.EventKey:
+					if ev.Key == termbox.KeyCtrlC || ev.Key == termbox.KeyCtrlZ {
+						termbox.Close()
+						return
+					}
+				case termbox.EventError:
+					panic(ev.Err)
+				}
 			}
-
-			// Очиста старых строк
-			table.ClearRows()
-			// Добавление данных в таблицу
-			table.Append(
-				[]string{
-					data.CurrentDuration.String(),
-					fmt.Sprintf("%d", data.CurrentRPC),
-					fmt.Sprintf("%d", data.CurrentWorkers),
-					fmt.Sprintf("%d", data.CurrentTotalRequests),
-					fmt.Sprintf("%d", data.CurrentSuccessRequests),
-					fmt.Sprintf("%d", data.CurrentFailedRequests),
-				},
-			)
-			// Отрисовка таблицы
-			table.Render()
-
-			if err := termbox.Flush(); err != nil {
-				log.Fatalln(err)
-			}
-
-			time.Sleep(100 * time.Millisecond)
 		}
-	}
-}
+	}()
 
-func (d *Display) drawText(x, y int, text string) {
-	for i, char := range text {
-		termbox.SetCell(x+i, y, char, termbox.ColorDefault, termbox.ColorDefault)
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-d.ctx.Done():
+				termbox.Close()
+				return
+			case data := <-d.dataCh:
+				if err := termbox.Clear(termbox.ColorDefault, termbox.ColorDefault); err != nil {
+					log.Fatalln(err)
+				}
+				if err := termbox.Sync(); err != nil {
+					log.Fatalln(err)
+				}
+
+				// Очиста старых строк
+				table.ClearRows()
+				// Добавление данных в таблицу
+				table.Append(
+					[]string{
+						data.CurrentDuration.String(),
+						fmt.Sprintf("%d", data.CurrentRPC),
+						fmt.Sprintf("%d", data.CurrentWorkers),
+						fmt.Sprintf("%d", data.CurrentTotalRequests),
+						fmt.Sprintf("%d", data.CurrentSuccessRequests),
+						fmt.Sprintf("%d", data.CurrentFailedRequests),
+					},
+				)
+				// Отрисовка таблицы
+				table.Render()
+
+				if err := termbox.Flush(); err != nil {
+					log.Fatalln(err)
+				}
+			}
+		}
+	}()
 }
