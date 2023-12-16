@@ -78,22 +78,24 @@ func (f *Flooder) Run() {
 			case <-spawnTicker.C:
 				rpc := int(float64(f.total) / time.Since(s).Seconds())
 				if rpc < int(float64(f.rpc)*0.95) && w < 1000 {
-					f.dataCh <- &app.Data{
-						CurrentDuration:        time.Since(s),
-						TargetRPC:              f.rpc,
-						CurrentRPC:             rpc,
-						CurrentWorkers:         w,
-						CurrentTotalRequests:   f.total,
-						CurrentFailedRequests:  f.failed,
-						CurrentSuccessRequests: f.success,
-					}
-
 					//f.print(fmt.Sprintf("current RPC: %d, target RPC: %d", rpc, f.rpc))
 					wg.Add(1)
 					f.spawn(atomic.AddInt64(&w, 1), wg, s, t)
 				} else {
 					//f.print(fmt.Sprintf("current RPC: %d, target RPC: %d", rpc, f.rpc))
 				}
+			default:
+				rpc := int(float64(f.total) / time.Since(s).Seconds())
+				f.dataCh <- &app.Data{
+					CurrentDuration:        time.Since(s),
+					TargetRPC:              f.rpc,
+					CurrentRPC:             rpc,
+					CurrentWorkers:         w,
+					CurrentTotalRequests:   f.total,
+					CurrentFailedRequests:  f.failed,
+					CurrentSuccessRequests: f.success,
+				}
+				time.Sleep(time.Millisecond * 100)
 			}
 		}
 	}()
