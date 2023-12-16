@@ -4,7 +4,6 @@ import (
 	"context"
 	"ddos/internal/ddos/app"
 	display "ddos/internal/display/app"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -20,17 +19,14 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer wg.Wait()
 
-	di := display.New(ctx)
+	di := display.New(ctx, exit)
 	dd := ddos.New(ctx, di)
 
 	wg.Add(2)
 	go di.Run(wg)
 	go dd.Run(wg)
 
-	log.Println("awaiting ctrl+c")
 	<-exit
-	log.Println("received ctrl+c sing, closing...")
 	cancel()
 	wg.Wait()
-	log.Println("exited!")
 }
