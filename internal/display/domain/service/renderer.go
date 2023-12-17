@@ -2,41 +2,45 @@ package displayservice
 
 import (
 	"context"
-	model "ddos/internal/display/domain/model"
+	statservice "ddos/internal/stat/domain/service"
+	"fmt"
 	"github.com/nsf/termbox-go"
 	"github.com/olekukonko/tablewriter"
 	"log"
 	"os"
 	"sync"
+	"time"
 )
 
 type Renderer struct {
 	ctx       context.Context
-	dataCh    chan *model.Table
-	summaryCh chan *model.Table
+	collector *statservice.Collector
 	exitCh    chan os.Signal
 	stopCh    chan struct{}
 }
 
-func NewRenderer(ctx context.Context, exitCh chan os.Signal, dataCh chan *model.Table, summaryCh chan *model.Table) *Renderer {
+func NewRenderer(
+	ctx context.Context,
+	collector *statservice.Collector,
+	exitCh chan os.Signal,
+) *Renderer {
 	return &Renderer{
 		ctx:       ctx,
 		exitCh:    exitCh,
-		dataCh:    dataCh,
-		summaryCh: summaryCh,
+		collector: collector,
 		stopCh:    make(chan struct{}, 1),
 	}
 }
 
-func (d *Renderer) Close(wg *sync.WaitGroup) {
+func (r *Renderer) Close(wg *sync.WaitGroup) {
 	defer func() {
-		close(d.stopCh)
+		close(r.stopCh)
 		wg.Done()
 	}()
 
 	for {
 		select {
-		case <-d.ctx.Done():
+		case <-r.ctx.Done():
 			return
 		default:
 			switch ev := termbox.PollEvent(); ev.Type {
@@ -51,7 +55,7 @@ func (d *Renderer) Close(wg *sync.WaitGroup) {
 	}
 }
 
-func (d *Renderer) Draw(wg *sync.WaitGroup) {
+func (r *Renderer) Draw(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	err := termbox.Init()
@@ -62,25 +66,43 @@ func (d *Renderer) Draw(wg *sync.WaitGroup) {
 
 	table := tablewriter.NewWriter(os.Stdout)
 
+	renderTicker := time.NewTicker(time.Millisecond * 100)
+
 	for {
 		select {
-		case <-d.stopCh:
+		case <-r.stopCh:
 			termbox.Close()
 
-			d.exitCh <- os.Interrupt
-
-			summary := <-d.summaryCh
+			r.exitCh <- os.Interrupt
 
 			// draw the summary table
 			table = tablewriter.NewWriter(os.Stdout)
 
 			// draw a header of the summary tables
-			table.SetHeader(summary.Header)
+			table.SetHeader([]string{
+				"duration",
+				"maxrps",
+				"workers",
+				"total reqs.",
+				"success reqs.",
+				"failed reqs.",
+				"avg. total req. duration",
+				"avg. success req. duration",
+				"avg. failed req. duration",
+			})
 
 			// draw rows of the summary table
-			for _, row := range summary.Rows {
-				table.Append(row)
-			}
+			table.Append([]string{
+				r.collector.Duration().String(),
+				fmt.Sprintf("%d", r.collector.RPS()),
+				fmt.Sprintf("%d", r.collector.Workers()),
+				fmt.Sprintf("%d", r.collector.Total()),
+				fmt.Sprintf("%d", r.collector.Success()),
+				fmt.Sprintf("%d", r.collector.Failed()),
+				r.collector.AvgTotalDuration().String(),
+				r.collector.AvgSuccessDuration().String(),
+				r.collector.AvgFailedDuration().String(),
+			})
 
 			// render the summary table
 			table.Render()
@@ -91,7 +113,7 @@ func (d *Renderer) Draw(wg *sync.WaitGroup) {
 			}
 
 			return
-		case data := <-d.dataCh:
+		case <-renderTicker.C:
 			// clear a terminal window
 			if err = termbox.Clear(termbox.ColorDefault, termbox.ColorDefault); err != nil {
 				log.Fatalln(err)
@@ -102,15 +124,33 @@ func (d *Renderer) Draw(wg *sync.WaitGroup) {
 			}
 
 			// set up a table header
-			table.SetHeader(data.Header)
+			table.SetHeader([]string{
+				"duration",
+				"maxrps",
+				"workers",
+				"total reqs.",
+				"success reqs.",
+				"failed reqs.",
+				"avg. total req. duration",
+				"avg. success req. duration",
+				"avg. failed req. duration",
+			})
 
 			// clear a table rows
 			table.ClearRows()
 
 			// set up a table rows
-			for _, row := range data.Rows {
-				table.Append(row)
-			}
+			table.Append([]string{
+				r.collector.Duration().String(),
+				fmt.Sprintf("%d", r.collector.RPS()),
+				fmt.Sprintf("%d", r.collector.Workers()),
+				fmt.Sprintf("%d", r.collector.Total()),
+				fmt.Sprintf("%d", r.collector.Success()),
+				fmt.Sprintf("%d", r.collector.Failed()),
+				r.collector.AvgTotalDuration().String(),
+				r.collector.AvgSuccessDuration().String(),
+				r.collector.AvgFailedDuration().String(),
+			})
 
 			// render a table
 			table.Render()
