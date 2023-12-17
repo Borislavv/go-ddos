@@ -11,18 +11,20 @@ import (
 )
 
 type Renderer struct {
-	ctx    context.Context
-	dataCh chan *model.Table
-	exitCh chan os.Signal
-	stopCh chan struct{}
+	ctx       context.Context
+	dataCh    chan *model.Table
+	summaryCh chan *model.Table
+	exitCh    chan os.Signal
+	stopCh    chan struct{}
 }
 
-func NewRenderer(ctx context.Context, exitCh chan os.Signal, dataCh chan *model.Table) *Renderer {
+func NewRenderer(ctx context.Context, exitCh chan os.Signal, dataCh chan *model.Table, summaryCh chan *model.Table) *Renderer {
 	return &Renderer{
-		ctx:    ctx,
-		exitCh: exitCh,
-		dataCh: dataCh,
-		stopCh: make(chan struct{}, 1),
+		ctx:       ctx,
+		exitCh:    exitCh,
+		dataCh:    dataCh,
+		summaryCh: summaryCh,
+		stopCh:    make(chan struct{}, 1),
 	}
 }
 
@@ -67,10 +69,22 @@ func (d *Renderer) Draw(wg *sync.WaitGroup) {
 
 			d.exitCh <- os.Interrupt
 
+			log.Println("renderer: send interrupt signal")
+
+			summary := <-d.summaryCh
+
+			log.Println("renderer: received summary data")
+
 			// draw the summary table
 			table = tablewriter.NewWriter(os.Stdout)
-			table.SetHeader([]string{"hello"})
-			table.Append([]string{"world"})
+
+			// draw a header of the summary tables
+			table.SetHeader(summary.Header)
+
+			// draw rows of the summary table
+			for _, row := range summary.Rows {
+				table.Append(row)
+			}
 
 			// render the summary table
 			table.Render()

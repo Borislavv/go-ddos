@@ -9,23 +9,25 @@ import (
 )
 
 type Display struct {
-	ctx    context.Context
-	dataCh chan *model.Table
-	exitCh chan os.Signal
+	ctx       context.Context
+	dataCh    chan *model.Table
+	summaryCh chan *model.Table
+	exitCh    chan os.Signal
 }
 
 func New(ctx context.Context, exitCh chan os.Signal) *Display {
 	return &Display{
-		ctx:    ctx,
-		exitCh: exitCh,
-		dataCh: make(chan *model.Table, 1000),
+		ctx:       ctx,
+		exitCh:    exitCh,
+		dataCh:    make(chan *model.Table, 1000),
+		summaryCh: make(chan *model.Table),
 	}
 }
 
 func (d *Display) Run(mwg *sync.WaitGroup) {
 	defer mwg.Done()
 
-	renderer := displayservice.NewRenderer(d.ctx, d.exitCh, d.dataCh)
+	renderer := displayservice.NewRenderer(d.ctx, d.exitCh, d.dataCh, d.summaryCh)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
@@ -36,4 +38,8 @@ func (d *Display) Run(mwg *sync.WaitGroup) {
 
 func (d *Display) Draw(t *model.Table) {
 	d.dataCh <- t
+}
+
+func (d *Display) DrawSummary(t *model.Table) {
+	d.summaryCh <- t
 }

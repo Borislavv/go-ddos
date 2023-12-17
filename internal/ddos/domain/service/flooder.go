@@ -64,6 +64,10 @@ func (f *Flooder) Run() {
 
 			select {
 			case <-f.ctx.Done():
+				log.Println("flooder: received ctx.Done")
+
+				f.sendSummary(crpc)
+
 				return
 			case <-threadSpawnTicker.C:
 				trpc := int(float64(f.rpc) * 0.95)
@@ -83,6 +87,31 @@ func (f *Flooder) Run() {
 
 func (f *Flooder) sendStat(crpc int) {
 	f.display.Draw(
+		&displaymodel.Table{
+			Header: []string{
+				"duration",
+				"rpc",
+				"workers",
+				"total reqs.",
+				"success reqs.",
+				"failed reqs.",
+			},
+			Rows: [][]string{
+				{
+					time.Since(f.started).String(),
+					fmt.Sprintf("%d", crpc),
+					fmt.Sprintf("%d", atomic.LoadInt64(&f.actwks)),
+					fmt.Sprintf("%d", atomic.LoadInt64(&f.total)),
+					fmt.Sprintf("%d", atomic.LoadInt64(&f.success)),
+					fmt.Sprintf("%d", atomic.LoadInt64(&f.failed)),
+				},
+			},
+		},
+	)
+}
+
+func (f *Flooder) sendSummary(crpc int) {
+	f.display.DrawSummary(
 		&displaymodel.Table{
 			Header: []string{
 				"duration",
