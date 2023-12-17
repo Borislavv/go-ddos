@@ -1,7 +1,7 @@
 package ddos
 
 type Config struct {
-	RPC      int    `env:"RPC" envDefault:"100"`
-	Workers  int    `env:"WORKERS" envDefault:"10"`
-	Duration string `env:"DURATION" envDefault:"15m"`
+	RPS        int    `env:"RPS" envDefault:"300"`
+	MaxWorkers int64  `env:"WORKERS" envDefault:"1000"`
+	Duration   string `env:"DURATION" envDefault:"15m"`
 }
