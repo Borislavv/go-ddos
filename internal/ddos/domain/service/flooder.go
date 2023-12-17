@@ -2,15 +2,15 @@ package ddosservice
 
 import (
 	"context"
+	ddos "ddos/config"
 	display "ddos/internal/display/app"
-	displaymodel "ddos/internal/display/domain/model"
+	statservice "ddos/internal/stat/domain/service"
 	"fmt"
 	"io"
 	"log"
 	"math/rand"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -18,37 +18,28 @@ type Flooder struct {
 	mu  *sync.RWMutex
 	ctx context.Context
 
-	// dependencies
-	display *display.Display
-
-	// settings
-	rps    int   // number of max rps
-	maxwks int64 // number of max active workers
-
-	// metrics
-	actwks  int64     // number of active workers
-	total   int64     // number of total reqs.
-	success int64     // number of success reqs.
-	failed  int64     // number of failed reqs.
-	started time.Time // time of the ddos started
-
-	totalDurationMs   int64 // accumulative duration of total reqs.
-	successDurationMs int64 // accumulative duration of success reqs.
-	failedDurationMs  int64 // accumulative duration of failed reqs.
+	config    *ddos.Config
+	display   *display.Display
+	collector *statservice.Collector
 }
 
-func NewFlooder(ctx context.Context, rps int, maxwks int64, display *display.Display) *Flooder {
+func NewFlooder(
+	ctx context.Context,
+	config *ddos.Config,
+	display *display.Display,
+	collector *statservice.Collector,
+) *Flooder {
 	return &Flooder{
-		mu:      &sync.RWMutex{},
-		ctx:     ctx,
-		rps:     rps,
-		maxwks:  maxwks,
-		display: display,
+		mu:        &sync.RWMutex{},
+		ctx:       ctx,
+		config:    config,
+		display:   display,
+		collector: collector,
 	}
 }
 
 func (f *Flooder) Run() {
-	f.started = time.Now()
+	f.collector.SetStartedAt(time.Now())
 
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
@@ -57,97 +48,28 @@ func (f *Flooder) Run() {
 	go func() {
 		defer wg.Done()
 
-		requestSendTicker := time.NewTicker(time.Second / time.Duration(float64(f.rps)*1.10))
+		requestSendTicker := time.NewTicker(time.Second / time.Duration(float64(f.config.MaxRPS)*1.10))
 		defer requestSendTicker.Stop()
 
 		threadSpawnTicker := time.NewTicker(time.Millisecond * 50)
 		defer threadSpawnTicker.Stop()
 
 		for {
-			crps := int(float64(atomic.LoadInt64(&f.total)) / time.Since(f.started).Seconds())
+			f.collector.SetRPS()
 
 			select {
 			case <-f.ctx.Done():
-				f.sendStat(crps, true)
 				return
 			case <-threadSpawnTicker.C:
-				f.spawnThread(wg, requestSendTicker, crps)
-			default:
-				f.sendStat(crps, false)
-				time.Sleep(time.Millisecond * 100)
+				f.spawnThread(wg, requestSendTicker, f.collector.RPS())
 			}
 		}
 	}()
 }
 
-func (f *Flooder) sendStat(crps int, isSummary bool) {
-	total := atomic.LoadInt64(&f.total)
-
-	var avgTotalDur string
-	if total == 0 {
-		avgTotalDur = time.Duration(0).String()
-	} else {
-		avgTotalDur = ((time.Duration(atomic.LoadInt64(&f.totalDurationMs) / total)) * time.Millisecond).String()
-	}
-
-	success := atomic.LoadInt64(&f.success)
-
-	var avgSuccessDur string
-	if success == 0 {
-		avgSuccessDur = time.Duration(0).String()
-	} else {
-		avgSuccessDur = ((time.Duration(atomic.LoadInt64(&f.successDurationMs) / success)) * time.Millisecond).String()
-	}
-
-	failed := atomic.LoadInt64(&f.failed)
-
-	var avgFailedDur string
-	if failed == 0 {
-		avgFailedDur = time.Duration(0).String()
-	} else {
-		avgFailedDur = ((time.Duration(atomic.LoadInt64(&f.failedDurationMs) / failed)) * time.Millisecond).String()
-	}
-
-	t := &displaymodel.Table{
-		Header: []string{
-			"duration",
-			"rps",
-			"workers",
-			"total reqs.",
-			"success reqs.",
-			"failed reqs.",
-			"avg. total req. duration",
-			"avg. success req. duration",
-			"avg. failed req. duration",
-		},
-		Rows: [][]string{
-			{
-				time.Since(f.started).String(),
-				fmt.Sprintf("%d", crps),
-				fmt.Sprintf("%d", atomic.LoadInt64(&f.actwks)),
-				fmt.Sprintf("%d", total),
-				fmt.Sprintf("%d", success),
-				fmt.Sprintf("%d", failed),
-				avgTotalDur,
-				avgSuccessDur,
-				avgFailedDur,
-			},
-		},
-	}
-
-	if isSummary {
-		f.display.DrawSummary(t)
-		return
-	}
-
-	f.display.Draw(t)
-}
-
-func (f *Flooder) spawnThread(wg *sync.WaitGroup, requestSendTicker *time.Ticker, crps int) {
-	// calculating a current rps
-	trps := int(float64(f.rps) * 0.95)
-	// check the current rpc is under the target rpc and number of active workers is under the max workers
-	if crps < trps && atomic.LoadInt64(&f.actwks) < f.maxwks {
+func (f *Flooder) spawnThread(wg *sync.WaitGroup, requestSendTicker *time.Ticker, crps int64) {
+	trps := int64(float64(f.config.MaxRPS) * 0.95)
+	if crps < trps && f.collector.Workers() < f.config.MaxWorkers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -160,7 +82,7 @@ func (f *Flooder) spawnThread(wg *sync.WaitGroup, requestSendTicker *time.Ticker
 				}
 			}
 		}()
-		atomic.AddInt64(&f.actwks, 1)
+		f.collector.AddWorker()
 	}
 }
 
@@ -176,14 +98,14 @@ func (f *Flooder) sendRequest() {
 
 	s := time.Now()
 	defer func() {
-		atomic.AddInt64(&f.totalDurationMs, time.Since(s).Milliseconds())
+		f.collector.AddTotalDuration(time.Since(s))
 	}()
 
 	resp, err := http.Get(url)
-	atomic.AddInt64(&f.total, 1)
+	f.collector.AddTotal()
 	if err != nil || resp.StatusCode != 200 {
-		atomic.AddInt64(&f.failed, 1)
-		atomic.AddInt64(&f.failedDurationMs, time.Since(s).Milliseconds())
+		f.collector.AddFailed()
+		f.collector.AddFailedDuration(time.Since(s))
 		log.Println(err, resp.StatusCode)
 		return
 	}
@@ -191,6 +113,6 @@ func (f *Flooder) sendRequest() {
 
 	_, _ = io.Copy(io.Discard, resp.Body)
 
-	atomic.AddInt64(&f.success, 1)
-	atomic.AddInt64(&f.successDurationMs, time.Since(s).Milliseconds())
+	f.collector.AddSuccess()
+	f.collector.AddSuccessDuration(time.Since(s))
 }
