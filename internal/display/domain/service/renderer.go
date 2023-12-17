@@ -69,11 +69,7 @@ func (d *Renderer) Draw(wg *sync.WaitGroup) {
 
 			d.exitCh <- os.Interrupt
 
-			log.Println("renderer: send interrupt signal")
-
 			summary := <-d.summaryCh
-
-			log.Println("renderer: received summary data")
 
 			// draw the summary table
 			table = tablewriter.NewWriter(os.Stdout)

@@ -37,7 +37,7 @@ func (app *DDOS) Run(mwg *sync.WaitGroup) {
 	}
 	defer cancel()
 
-	f := service.NewFlooder(ctx, app.cfg.RPC, app.cfg.Workers, app.display)
+	f := service.NewFlooder(ctx, app.cfg.RPS, app.cfg.MaxWorkers, app.display)
 
 	f.Run()
 }
