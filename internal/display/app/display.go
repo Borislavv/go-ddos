@@ -3,25 +3,21 @@ package display
 import (
 	"context"
 	displayservice "ddos/internal/display/domain/service"
-	"os"
 	"sync"
 )
 
 type Display struct {
 	ctx      context.Context
 	renderer *displayservice.Renderer
-	exitCh   chan os.Signal
 }
 
 func New(
 	ctx context.Context,
 	renderer *displayservice.Renderer,
-	exitCh chan os.Signal,
 ) *Display {
 	return &Display{
 		ctx:      ctx,
 		renderer: renderer,
-		exitCh:   exitCh,
 	}
 }
 
