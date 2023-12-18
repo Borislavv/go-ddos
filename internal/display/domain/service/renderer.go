@@ -2,32 +2,33 @@ package displayservice
 
 import (
 	"context"
-	statservice "ddos/internal/stat/domain/service"
-	"fmt"
+	displaymodel "ddos/internal/display/domain/model"
 	"github.com/nsf/termbox-go"
 	"github.com/olekukonko/tablewriter"
 	"log"
 	"os"
 	"sync"
-	"time"
 )
 
 type Renderer struct {
 	ctx       context.Context
-	collector *statservice.Collector
-	exitCh    chan os.Signal
+	dataCh    <-chan *displaymodel.Table
+	summaryCh <-chan *displaymodel.Table
+	exitCh    chan<- os.Signal
 	stopCh    chan struct{}
 }
 
 func NewRenderer(
 	ctx context.Context,
-	collector *statservice.Collector,
-	exitCh chan os.Signal,
+	dataCh <-chan *displaymodel.Table,
+	summaryCh <-chan *displaymodel.Table,
+	exitCh chan<- os.Signal,
 ) *Renderer {
 	return &Renderer{
 		ctx:       ctx,
 		exitCh:    exitCh,
-		collector: collector,
+		dataCh:    dataCh,
+		summaryCh: summaryCh,
 		stopCh:    make(chan struct{}, 1),
 	}
 }
@@ -66,8 +67,6 @@ func (r *Renderer) Draw(wg *sync.WaitGroup) {
 
 	table := tablewriter.NewWriter(os.Stdout)
 
-	renderTicker := time.NewTicker(time.Millisecond * 100)
-
 	for {
 		select {
 		case <-r.stopCh:
@@ -75,34 +74,18 @@ func (r *Renderer) Draw(wg *sync.WaitGroup) {
 
 			r.exitCh <- os.Interrupt
 
+			data := <-r.summaryCh
+
 			// draw the summary table
 			table = tablewriter.NewWriter(os.Stdout)
 
 			// draw a header of the summary tables
-			table.SetHeader([]string{
-				"duration",
-				"maxrps",
-				"workers",
-				"total reqs.",
-				"success reqs.",
-				"failed reqs.",
-				"avg. total req. duration",
-				"avg. success req. duration",
-				"avg. failed req. duration",
-			})
+			table.SetHeader(data.Header)
 
 			// draw rows of the summary table
-			table.Append([]string{
-				r.collector.Duration().String(),
-				fmt.Sprintf("%d", r.collector.RPS()),
-				fmt.Sprintf("%d", r.collector.Workers()),
-				fmt.Sprintf("%d", r.collector.Total()),
-				fmt.Sprintf("%d", r.collector.Success()),
-				fmt.Sprintf("%d", r.collector.Failed()),
-				r.collector.AvgTotalDuration().String(),
-				r.collector.AvgSuccessDuration().String(),
-				r.collector.AvgFailedDuration().String(),
-			})
+			for _, row := range data.Rows {
+				table.Append(row)
+			}
 
 			// render the summary table
 			table.Render()
@@ -113,7 +96,7 @@ func (r *Renderer) Draw(wg *sync.WaitGroup) {
 			}
 
 			return
-		case <-renderTicker.C:
+		case data := <-r.dataCh:
 			// clear a terminal window
 			if err = termbox.Clear(termbox.ColorDefault, termbox.ColorDefault); err != nil {
 				log.Fatalln(err)
@@ -124,33 +107,15 @@ func (r *Renderer) Draw(wg *sync.WaitGroup) {
 			}
 
 			// set up a table header
-			table.SetHeader([]string{
-				"duration",
-				"maxrps",
-				"workers",
-				"total reqs.",
-				"success reqs.",
-				"failed reqs.",
-				"avg. total req. duration",
-				"avg. success req. duration",
-				"avg. failed req. duration",
-			})
+			table.SetHeader(data.Header)
 
 			// clear a table rows
 			table.ClearRows()
 
 			// set up a table rows
-			table.Append([]string{
-				r.collector.Duration().String(),
-				fmt.Sprintf("%d", r.collector.RPS()),
-				fmt.Sprintf("%d", r.collector.Workers()),
-				fmt.Sprintf("%d", r.collector.Total()),
-				fmt.Sprintf("%d", r.collector.Success()),
-				fmt.Sprintf("%d", r.collector.Failed()),
-				r.collector.AvgTotalDuration().String(),
-				r.collector.AvgSuccessDuration().String(),
-				r.collector.AvgFailedDuration().String(),
-			})
+			for _, row := range data.Rows {
+				table.Append(row)
+			}
 
 			// render a table
 			table.Render()
