@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -21,14 +22,19 @@ func main() {
 	defer close(exitCh)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 
-	wg := &sync.WaitGroup{}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer wg.Wait()
-
 	cfg, err := initConfig()
 	if err != nil {
 		panic(err)
 	}
+
+	dur, err := time.ParseDuration(cfg.Duration)
+	if err != nil {
+		panic(err)
+	}
+
+	wg := &sync.WaitGroup{}
+	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	defer wg.Wait()
 
 	dtCh := make(chan *displaymodel.Table, cfg.MaxRPS)
 	smCh := make(chan *displaymodel.Table)
