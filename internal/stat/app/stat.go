@@ -47,7 +47,7 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 	for {
 		header := []string{
 			"duration",
-			"maxrps",
+			"rps",
 			"workers",
 			"total reqs.",
 			"success reqs.",
