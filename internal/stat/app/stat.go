@@ -44,31 +44,31 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 
 	statTicker := time.NewTicker(time.Millisecond * 100)
 
-	header := []string{
-		"duration",
-		"maxrps",
-		"workers",
-		"total reqs.",
-		"success reqs.",
-		"failed reqs.",
-		"avg. total req. duration",
-		"avg. success req. duration",
-		"avg. failed req. duration",
-	}
-
-	row := []string{
-		s.collector.Duration().String(),
-		fmt.Sprintf("%d", s.collector.RPS()),
-		fmt.Sprintf("%d", s.collector.Workers()),
-		fmt.Sprintf("%d", s.collector.Total()),
-		fmt.Sprintf("%d", s.collector.Success()),
-		fmt.Sprintf("%d", s.collector.Failed()),
-		s.collector.AvgTotalDuration().String(),
-		s.collector.AvgSuccessDuration().String(),
-		s.collector.AvgFailedDuration().String(),
-	}
-
 	for {
+		header := []string{
+			"duration",
+			"maxrps",
+			"workers",
+			"total reqs.",
+			"success reqs.",
+			"failed reqs.",
+			"avg. total req. duration",
+			"avg. success req. duration",
+			"avg. failed req. duration",
+		}
+
+		row := []string{
+			s.collector.Duration().String(),
+			fmt.Sprintf("%d", s.collector.RPS()),
+			fmt.Sprintf("%d", s.collector.Workers()),
+			fmt.Sprintf("%d", s.collector.Total()),
+			fmt.Sprintf("%d", s.collector.Success()),
+			fmt.Sprintf("%d", s.collector.Failed()),
+			s.collector.AvgTotalDuration().String(),
+			s.collector.AvgSuccessDuration().String(),
+			s.collector.AvgFailedDuration().String(),
+		}
+
 		select {
 		case <-s.ctx.Done():
 			s.summaryCh <- &displaymodel.Table{
