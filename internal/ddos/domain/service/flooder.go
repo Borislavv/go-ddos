@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -98,18 +99,29 @@ func (f *Flooder) sendRequest() {
 
 	s := time.Now()
 	defer func() {
+		f.collector.AddTotal()
 		f.collector.AddTotalDuration(time.Since(s))
 	}()
 
 	resp, err := http.Get(url)
-	f.collector.AddTotal()
 	if err != nil || resp.StatusCode != 200 {
 		f.collector.AddFailed()
 		f.collector.AddFailedDuration(time.Since(s))
-		log.Println(err, resp.StatusCode)
+
+		b := strings.Builder{}
+		if resp != nil {
+			b.WriteString(fmt.Sprintf("status code: %d", resp.StatusCode))
+		} else if err != nil {
+			b.WriteString(", error: ")
+			b.WriteString(err.Error())
+		}
+		log.Println(b.String())
+
 		return
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	_, _ = io.Copy(io.Discard, resp.Body)
 
