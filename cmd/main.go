@@ -30,13 +30,13 @@ func main() {
 		panic(err)
 	}
 
-	dtCh := make(chan *displaymodel.Table)
+	dtCh := make(chan *displaymodel.Table, cfg.MaxRPS)
 	smCh := make(chan *displaymodel.Table)
 
 	cl := statservice.NewCollector()
 	st := stat.New(ctx, dtCh, smCh, cl)
-	rd := displayservice.NewRenderer(ctx, cl, exitCh)
-	di := display.New(ctx, rd, exitCh)
+	rd := displayservice.NewRenderer(ctx, dtCh, smCh, exitCh)
+	di := display.New(ctx, rd)
 	dd := ddos.New(ctx, cfg, di, cl)
 
 	wg.Add(3)
