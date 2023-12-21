@@ -9,7 +9,8 @@ import (
 	displayservice "ddos/internal/display/domain/service"
 	stat "ddos/internal/stat/app"
 	statservice "ddos/internal/stat/domain/service"
-	"github.com/caarlos0/env/v9"
+	"fmt"
+	"github.com/alexflint/go-arg"
 	"os"
 	"os/signal"
 	"sync"
@@ -18,14 +19,14 @@ import (
 )
 
 func main() {
+	cfg := &config.Config{}
+	arg.MustParse(cfg)
+
+	fmt.Printf("%+v", cfg)
+
 	exitCh := make(chan os.Signal, 1)
 	defer close(exitCh)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
-
-	cfg, err := initConfig()
-	if err != nil {
-		panic(err)
-	}
 
 	dur, err := time.ParseDuration(cfg.Duration)
 	if err != nil {
@@ -52,12 +53,4 @@ func main() {
 
 	<-exitCh
 	cancel()
-}
-
-func initConfig() (cfg *config.Config, err error) {
-	cfg = &config.Config{}
-	if err = env.Parse(cfg); err != nil {
-		return nil, err
-	}
-	return cfg, nil
 }
