@@ -61,9 +61,9 @@ func (m *Metrics) Workers() int64 {
 	return atomic.LoadInt64(&m.workers)
 }
 
-func (m *Metrics) AddWorker() {
+func (m *Metrics) AddWorkers(n int64) {
 	if atomic.LoadInt64(&m.isMutable) == 1 {
-		atomic.AddInt64(&m.workers, 1)
+		atomic.AddInt64(&m.workers, n)
 	}
 }
 
