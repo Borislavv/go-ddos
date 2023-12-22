@@ -73,10 +73,13 @@ func (c *Collector) firstPercentile() int64 {
 func (c *Collector) currentMetric() *model.Metrics {
 	metric, ok := c.percentilesMetrics[c.currentPercentile()]
 	if !ok {
+		metric = model.NewMetric()
+
 		if prevMetric, isset := c.percentilesMetrics[c.currentPercentile()-1]; isset {
 			prevMetric.Lock()
+			metric.AddWorkers(prevMetric.Workers())
 		}
-		metric = model.NewMetric()
+
 		c.percentilesMetrics[c.currentPercentile()] = metric
 	}
 	return metric
@@ -134,7 +137,7 @@ func (c *Collector) AddWorker() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.currentMetric().AddWorker()
+	c.currentMetric().AddWorkers(1)
 }
 
 func (c *Collector) Workers() int64 {
