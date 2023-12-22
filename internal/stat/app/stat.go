@@ -2,9 +2,11 @@ package stat
 
 import (
 	"context"
+	"ddos/config"
 	displaymodel "ddos/internal/display/domain/model"
 	statservice "ddos/internal/stat/domain/service"
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -12,6 +14,7 @@ import (
 type Stat struct {
 	mu        *sync.RWMutex
 	ctx       context.Context
+	cfg       *config.Config
 	dataCh    chan<- *displaymodel.Table
 	summaryCh chan<- *displaymodel.Table
 	collector *statservice.Collector
@@ -19,6 +22,7 @@ type Stat struct {
 
 func New(
 	ctx context.Context,
+	cfg *config.Config,
 	dataCh chan<- *displaymodel.Table,
 	summaryCh chan<- *displaymodel.Table,
 	collector *statservice.Collector,
@@ -26,6 +30,7 @@ func New(
 	return &Stat{
 		mu:        &sync.RWMutex{},
 		ctx:       ctx,
+		cfg:       cfg,
 		dataCh:    dataCh,
 		summaryCh: summaryCh,
 		collector: collector,
@@ -57,19 +62,28 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 		"avg. success req. duration",
 		"avg. failed req. duration",
 		"current percentile",
+		"goroutines",
 	}
-	
+
+	rendererRows := make(map[int64][]string, s.cfg.Percentiles)
+
 	for {
 		select {
 		case <-s.ctx.Done():
 			var rows [][]string
 			for percentile := int64(1); percentile <= s.collector.Percentiles(); percentile++ {
+				row, ok := rendererRows[percentile]
+				if ok {
+					rows = append(rows, row)
+					continue
+				}
+
 				metric, ok := s.collector.Metric(percentile)
 				if !ok {
 					continue
 				}
 
-				rows = append(rows, []string{
+				row = []string{
 					metric.Duration().String(),
 					fmt.Sprintf("%d", metric.RPS()),
 					fmt.Sprintf("%d", metric.Workers()),
@@ -80,10 +94,13 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 					metric.AvgSuccessDuration().String(),
 					metric.AvgFailedDuration().String(),
 					fmt.Sprintf("%d of %d", percentile, s.collector.Percentiles()),
-				})
+					fmt.Sprintf("%d", runtime.NumGoroutine()),
+				}
+
+				rows = append(rows, row)
 			}
 
-			rows = append(rows, []string{
+			footer := []string{
 				s.collector.SummaryDuration().String(),
 				fmt.Sprintf("%d", s.collector.SummaryRPS()),
 				fmt.Sprintf("%d", s.collector.Workers()),
@@ -94,22 +111,30 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 				s.collector.SummaryAvgSuccessDuration().String(),
 				s.collector.SummaryAvgFailedDuration().String(),
 				"All",
-			})
+				fmt.Sprintf("%d", runtime.NumGoroutine()),
+			}
 
 			s.summaryCh <- &displaymodel.Table{
 				Header: header,
 				Rows:   rows,
+				Footer: footer,
 			}
 			return
 		case <-statTicker.C:
 			var rows [][]string
 			for percentile := int64(1); percentile <= s.collector.Percentiles(); percentile++ {
+				row, ok := rendererRows[percentile]
+				if ok {
+					rows = append(rows, row)
+					continue
+				}
+
 				metric, ok := s.collector.Metric(percentile)
 				if !ok {
 					continue
 				}
 
-				rows = append(rows, []string{
+				row = []string{
 					metric.Duration().String(),
 					fmt.Sprintf("%d", metric.RPS()),
 					fmt.Sprintf("%d", metric.Workers()),
@@ -120,7 +145,14 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 					metric.AvgSuccessDuration().String(),
 					metric.AvgFailedDuration().String(),
 					fmt.Sprintf("%d of %d", percentile, s.collector.Percentiles()),
-				})
+					fmt.Sprintf("%d", runtime.NumGoroutine()),
+				}
+
+				if metric.IsLocked() {
+					rendererRows[percentile] = row
+				}
+
+				rows = append(rows, row)
 			}
 
 			s.dataCh <- &displaymodel.Table{
