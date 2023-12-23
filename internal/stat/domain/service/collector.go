@@ -26,17 +26,68 @@ type Collector struct {
 	totalDuration   int64
 	successDuration int64
 	failedDuration  int64
+
+	// channels
+	totalCh   chan int64
+	successCh chan int64
+	failedCh  chan int64
 }
 
 func NewCollector(cfg *config.Config) *Collector {
 	c := &Collector{
-		mu:  &sync.RWMutex{},
-		cfg: cfg,
+		mu:        &sync.RWMutex{},
+		cfg:       cfg,
+		totalCh:   make(chan int64, int64(cfg.MaxRPS)*cfg.MaxWorkers),
+		successCh: make(chan int64, int64(cfg.MaxRPS)*cfg.MaxWorkers),
+		failedCh:  make(chan int64, int64(cfg.MaxRPS)*cfg.MaxWorkers),
 	}
 	if cfg.Percentiles > 0 {
 		c.percentiles = make(map[int]*model.Metrics, cfg.Percentiles)
 	}
 	return c
+}
+
+func (c *Collector) SendTotalDuration(d int64) {
+	c.totalCh <- d
+}
+
+func (c *Collector) SendSuccessDuration(d int64) {
+	c.successCh <- d
+}
+
+func (c *Collector) SendFailedDuration(d int64) {
+	c.failedCh <- d
+}
+
+func (c *Collector) Consume(wg *sync.WaitGroup) {
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		for d := range c.totalCh {
+			c.total++
+			c.totalDuration += d
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for d := range c.successCh {
+			c.success++
+			c.successDuration += d
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for d := range c.failedCh {
+			c.failed++
+			c.failedDuration += d
+		}
+	}()
+}
+
+func (c *Collector) Close() {
+	close(c.totalCh)
+	close(c.successCh)
+	close(c.failedCh)
 }
 
 func (c *Collector) SetStartedAt(s time.Time) {
