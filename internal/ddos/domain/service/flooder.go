@@ -90,14 +90,12 @@ func (f *Flooder) sendRequest() {
 
 	s := time.Now()
 	defer func() {
-		f.collector.AddTotal()
-		f.collector.AddTotalDuration(time.Since(s))
+		f.collector.SendTotalDuration(time.Since(s).Milliseconds())
 	}()
 
 	resp, err := http.Get(fmt.Sprintf("%v&ts=%d", f.config.URL, rand.Uint64()))
 	if err != nil || resp.StatusCode != 200 {
-		f.collector.AddFailed()
-		f.collector.AddFailedDuration(time.Since(s))
+		f.collector.SendFailedDuration(time.Since(s).Milliseconds())
 		return
 	}
 	defer func() {
@@ -106,6 +104,5 @@ func (f *Flooder) sendRequest() {
 
 	_, _ = io.Copy(io.Discard, resp.Body)
 
-	f.collector.AddSuccess()
-	f.collector.AddSuccessDuration(time.Since(s))
+	f.collector.SendSuccessDuration(time.Since(s).Milliseconds())
 }
