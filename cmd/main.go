@@ -30,12 +30,15 @@ func main() {
 		panic(err)
 	}
 
-	wg := &sync.WaitGroup{}
 	ctx, cancel := context.WithTimeout(context.Background(), dur)
-	defer wg.Wait()
 
 	dtCh := make(chan *displaymodel.Table, cfg.MaxRPS)
 	smCh := make(chan *displaymodel.Table)
+	defer close(dtCh)
+	defer close(smCh)
+
+	wg := &sync.WaitGroup{}
+	defer wg.Wait()
 
 	cl := statservice.NewCollector(cfg)
 	st := stat.New(ctx, dtCh, smCh, cl)
