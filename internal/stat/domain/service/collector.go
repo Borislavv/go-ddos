@@ -60,6 +60,8 @@ func (c *Collector) SendFailedDuration(d int64) {
 }
 
 func (c *Collector) Consume(wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	wg.Add(3)
 	go func() {
 		defer wg.Done()
