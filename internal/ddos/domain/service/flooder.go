@@ -7,10 +7,8 @@ import (
 	statservice "ddos/internal/stat/domain/service"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -90,33 +88,16 @@ func (f *Flooder) spawnThread(wg *sync.WaitGroup, requestSendTicker *time.Ticker
 func (f *Flooder) sendRequest() {
 	rand.Seed(time.Now().UnixNano())
 
-	url := fmt.Sprintf(
-		"https://seo-php-swoole.lux.kube.xbet.lan/api/v1/pagedata?group_id=285&u"+
-			"rl=php-swoole-test-domain.com/fr&geo=by&language=fr&project[id]=285&domain=php-swoo"+
-			"le-test-domain.com&timezone=3&stream=live&section=sport&sport[id]=1&timestamp=%d",
-		rand.Uint64(),
-	)
-
 	s := time.Now()
 	defer func() {
 		f.collector.AddTotal()
 		f.collector.AddTotalDuration(time.Since(s))
 	}()
 
-	resp, err := http.Get(url)
+	resp, err := http.Get(fmt.Sprintf("%v&ts=%d", f.config.URL, rand.Uint64()))
 	if err != nil || resp.StatusCode != 200 {
 		f.collector.AddFailed()
 		f.collector.AddFailedDuration(time.Since(s))
-
-		b := strings.Builder{}
-		if resp != nil {
-			b.WriteString(fmt.Sprintf("status code: %d", resp.StatusCode))
-		} else if err != nil {
-			b.WriteString(", error: ")
-			b.WriteString(err.Error())
-		}
-		log.Println(b.String())
-
 		return
 	}
 	defer func() {
