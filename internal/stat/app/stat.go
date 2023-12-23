@@ -44,19 +44,19 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 
 	statTicker := time.NewTicker(time.Millisecond * 100)
 
-	for {
-		header := []string{
-			"duration",
-			"rps",
-			"workers",
-			"total reqs.",
-			"success reqs.",
-			"failed reqs.",
-			"avg. total req. duration",
-			"avg. success req. duration",
-			"avg. failed req. duration",
-		}
+	header := []string{
+		"duration",
+		"rps",
+		"workers",
+		"total reqs.",
+		"success reqs.",
+		"failed reqs.",
+		"avg. total req. duration",
+		"avg. success req. duration",
+		"avg. failed req. duration",
+	}
 
+	for {
 		row := []string{
 			s.collector.Duration().String(),
 			fmt.Sprintf("%d", s.collector.RPS()),
