@@ -9,7 +9,6 @@ import (
 	displayservice "ddos/internal/display/domain/service"
 	stat "ddos/internal/stat/app"
 	statservice "ddos/internal/stat/domain/service"
-	"fmt"
 	"github.com/alexflint/go-arg"
 	"os"
 	"os/signal"
@@ -21,8 +20,6 @@ import (
 func main() {
 	cfg := &config.Config{}
 	arg.MustParse(cfg)
-
-	fmt.Printf("%+v", cfg)
 
 	exitCh := make(chan os.Signal, 1)
 	defer close(exitCh)
@@ -40,7 +37,7 @@ func main() {
 	dtCh := make(chan *displaymodel.Table, cfg.MaxRPS)
 	smCh := make(chan *displaymodel.Table)
 
-	cl := statservice.NewCollector()
+	cl := statservice.NewCollector(cfg)
 	st := stat.New(ctx, dtCh, smCh, cl)
 	rd := displayservice.NewRenderer(ctx, dtCh, smCh, exitCh)
 	di := display.New(ctx, rd)
