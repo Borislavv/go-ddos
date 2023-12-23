@@ -43,7 +43,8 @@ func BenchmarkFlooder_sendRequest(b *testing.B) {
 	collector := statservice.NewCollector(cfg)
 
 	wg := &sync.WaitGroup{}
-	collector.Consume(wg)
+	wg.Add(1)
+	go collector.Consume(wg)
 	defer func() {
 		collector.Close()
 		wg.Wait()
