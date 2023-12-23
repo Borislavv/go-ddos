@@ -1,13 +1,17 @@
 package statservice
 
 import (
+	"ddos/config"
+	"ddos/internal/stat/domain/model"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
 type Collector struct {
-	mu *sync.RWMutex
+	mu          *sync.RWMutex
+	cfg         *config.Config
+	percentiles map[int]*model.Metrics
 
 	// time
 	startedAt time.Time
@@ -24,10 +28,15 @@ type Collector struct {
 	failedDuration  int64
 }
 
-func NewCollector() *Collector {
-	return &Collector{
-		mu: &sync.RWMutex{},
+func NewCollector(cfg *config.Config) *Collector {
+	c := &Collector{
+		mu:  &sync.RWMutex{},
+		cfg: cfg,
 	}
+	if cfg.Percentiles > 0 {
+		c.percentiles = make(map[int]*model.Metrics, cfg.Percentiles)
+	}
+	return c
 }
 
 func (c *Collector) SetStartedAt(s time.Time) {
