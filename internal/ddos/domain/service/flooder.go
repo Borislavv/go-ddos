@@ -37,11 +37,10 @@ func NewFlooder(
 	}
 }
 
-func (f *Flooder) Run() {
-	f.collector.SetStartedAt(time.Now())
+func (f *Flooder) Run(wg *sync.WaitGroup) {
+	defer wg.Done()
 
-	wg := &sync.WaitGroup{}
-	defer wg.Wait()
+	f.collector.SetStartedAt(time.Now())
 
 	wg.Add(1)
 	go func() {
