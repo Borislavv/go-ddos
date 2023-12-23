@@ -28,7 +28,14 @@ func New(ctx context.Context, cfg *config.Config, display *display.Display, coll
 func (app *DDOS) Run(mwg *sync.WaitGroup) {
 	defer mwg.Done()
 
-	f := service.NewFlooder(app.ctx, app.cfg, app.display, app.collector)
+	cwg := &sync.WaitGroup{}
+	defer cwg.Wait()
+	cwg.Add(1)
+	go app.collector.Consume(cwg)
+	defer app.collector.Close()
 
-	f.Run()
+	fwg := &sync.WaitGroup{}
+	defer fwg.Wait()
+	fwg.Add(1)
+	go service.NewFlooder(app.ctx, app.cfg, app.display, app.collector).Run(fwg)
 }
