@@ -76,24 +76,11 @@ func (r *Renderer) Draw(wg *sync.WaitGroup) {
 
 			data := <-r.summaryCh
 
-			// draw the summary table
+			// reinitialized the table as the summary
 			table = tablewriter.NewWriter(os.Stdout)
 
-			// draw a header of the summary tables
-			table.SetHeader(data.Header)
-
-			// draw rows of the summary table
-			for _, row := range data.Rows {
-				table.Append(row)
-			}
-
-			// render the summary table
-			table.Render()
-
 			// draw the summary table
-			if err = termbox.Flush(); err != nil {
-				log.Fatalln(err)
-			}
+			r.draw(table, data)
 
 			return
 		case data := <-r.dataCh:
@@ -106,24 +93,29 @@ func (r *Renderer) Draw(wg *sync.WaitGroup) {
 				return
 			}
 
-			// set up a table header
-			table.SetHeader(data.Header)
-
-			// clear a table rows
-			table.ClearRows()
-
-			// set up a table rows
-			for _, row := range data.Rows {
-				table.Append(row)
-			}
-
-			// render a table
-			table.Render()
-
 			// draw a table
-			if err = termbox.Flush(); err != nil {
-				log.Fatalln(err)
-			}
+			r.draw(table, data)
 		}
+	}
+}
+
+func (r *Renderer) draw(table *tablewriter.Table, data *displaymodel.Table) {
+	// set up a table header
+	table.SetHeader(data.Header)
+
+	// clear a table rows
+	table.ClearRows()
+
+	// set up a table rows
+	for _, row := range data.Rows {
+		table.Append(row)
+	}
+
+	// render a table
+	table.Render()
+
+	// draw a table
+	if err := termbox.Flush(); err != nil {
+		log.Fatalln(err)
 	}
 }
