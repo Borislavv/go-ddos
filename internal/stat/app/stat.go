@@ -4,6 +4,7 @@ import (
 	"context"
 	"ddos/config"
 	displaymodel "ddos/internal/display/domain/model"
+	displayservice "ddos/internal/display/domain/service"
 	statservice "ddos/internal/stat/domain/service"
 	"fmt"
 	"runtime"
@@ -15,24 +16,21 @@ type Stat struct {
 	mu        *sync.RWMutex
 	ctx       context.Context
 	cfg       *config.Config
-	dataCh    chan<- *displaymodel.Table
-	summaryCh chan<- *displaymodel.Table
+	renderer  *displayservice.Renderer
 	collector *statservice.Collector
 }
 
 func New(
 	ctx context.Context,
 	cfg *config.Config,
-	dataCh chan<- *displaymodel.Table,
-	summaryCh chan<- *displaymodel.Table,
+	renderer *displayservice.Renderer,
 	collector *statservice.Collector,
 ) *Stat {
 	return &Stat{
 		mu:        &sync.RWMutex{},
 		ctx:       ctx,
 		cfg:       cfg,
-		dataCh:    dataCh,
-		summaryCh: summaryCh,
+		renderer:  renderer,
 		collector: collector,
 	}
 }
@@ -114,11 +112,13 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 				fmt.Sprintf("%d", runtime.NumGoroutine()),
 			}
 
-			s.summaryCh <- &displaymodel.Table{
-				Header: header,
-				Rows:   rows,
-				Footer: footer,
-			}
+			s.renderer.SendSummary(
+				&displaymodel.Table{
+					Header: header,
+					Rows:   rows,
+					Footer: footer,
+				},
+			)
 			return
 		case <-statTicker.C:
 			var rows [][]string
@@ -155,10 +155,12 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 				rows = append(rows, row)
 			}
 
-			s.dataCh <- &displaymodel.Table{
-				Header: header,
-				Rows:   rows,
-			}
+			s.renderer.SendData(
+				&displaymodel.Table{
+					Header: header,
+					Rows:   rows,
+				},
+			)
 		}
 	}
 }
