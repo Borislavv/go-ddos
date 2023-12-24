@@ -5,7 +5,6 @@ import (
 	"ddos/config"
 	"ddos/internal/ddos/app"
 	display "ddos/internal/display/app"
-	displaymodel "ddos/internal/display/domain/model"
 	displayservice "ddos/internal/display/domain/service"
 	stat "ddos/internal/stat/app"
 	statservice "ddos/internal/stat/domain/service"
@@ -21,6 +20,24 @@ func main() {
 	cfg := &config.Config{}
 	arg.MustParse(cfg)
 
+	if cfg.StdOutFile != "" {
+		outfile, err := os.Create(cfg.StdOutFile)
+		if err != nil {
+			panic(err)
+		}
+		defer func() { _ = outfile.Close() }()
+		os.Stdout = outfile
+	}
+
+	if cfg.StdErrFile != "" {
+		errfile, err := os.Create(cfg.StdErrFile)
+		if err != nil {
+			panic(err)
+		}
+		defer func() { _ = errfile.Close() }()
+		os.Stderr = errfile
+	}
+
 	exitCh := make(chan os.Signal, 1)
 	defer close(exitCh)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
@@ -34,12 +51,9 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), dur)
 	defer wg.Wait()
 
-	dtCh := make(chan *displaymodel.Table, cfg.MaxRPS)
-	smCh := make(chan *displaymodel.Table)
-
 	cl := statservice.NewCollector(cfg)
-	st := stat.New(ctx, cfg, dtCh, smCh, cl)
-	rd := displayservice.NewRenderer(ctx, dtCh, smCh, exitCh)
+	rd := displayservice.NewRenderer(ctx, cfg, exitCh)
+	st := stat.New(ctx, cfg, rd, cl)
 	di := display.New(ctx, rd)
 	dd := ddos.New(ctx, cfg, di, cl)
 
