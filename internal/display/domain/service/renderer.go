@@ -66,6 +66,7 @@ func (r *Renderer) Draw(wg *sync.WaitGroup) {
 	defer termbox.Close()
 
 	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAlignment(tablewriter.ALIGN_CENTER)
 
 	for {
 		select {
@@ -78,6 +79,7 @@ func (r *Renderer) Draw(wg *sync.WaitGroup) {
 
 			// reinitialized the table as the summary
 			table = tablewriter.NewWriter(os.Stdout)
+			table.SetAlignment(tablewriter.ALIGN_CENTER)
 
 			// draw the summary table
 			r.draw(table, data)
@@ -107,8 +109,10 @@ func (r *Renderer) draw(table *tablewriter.Table, data *displaymodel.Table) {
 	table.ClearRows()
 
 	// set up a table rows
-	for _, row := range data.Rows {
-		table.Append(row)
+	table.AppendBulk(data.Rows)
+
+	if data.Footer != nil {
+		table.SetFooter(data.Footer)
 	}
 
 	// render a table
