@@ -38,8 +38,6 @@ func NewFlooder(
 }
 
 func (f *Flooder) Run() {
-	f.collector.SetStartedAt(time.Now())
-
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 
