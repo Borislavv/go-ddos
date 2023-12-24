@@ -2,6 +2,7 @@ package displayservice
 
 import (
 	"context"
+	"ddos/config"
 	displaymodel "ddos/internal/display/domain/model"
 	"github.com/nsf/termbox-go"
 	"github.com/olekukonko/tablewriter"
@@ -12,25 +13,29 @@ import (
 
 type Renderer struct {
 	ctx       context.Context
-	dataCh    <-chan *displaymodel.Table
-	summaryCh <-chan *displaymodel.Table
+	cfg       *config.Config
+	dataCh    chan *displaymodel.Table
+	summaryCh chan *displaymodel.Table
 	exitCh    chan<- os.Signal
 	stopCh    chan struct{}
 }
 
-func NewRenderer(
-	ctx context.Context,
-	dataCh <-chan *displaymodel.Table,
-	summaryCh <-chan *displaymodel.Table,
-	exitCh chan<- os.Signal,
-) *Renderer {
+func NewRenderer(ctx context.Context, cfg *config.Config, exitCh chan<- os.Signal) *Renderer {
 	return &Renderer{
 		ctx:       ctx,
 		exitCh:    exitCh,
-		dataCh:    dataCh,
-		summaryCh: summaryCh,
+		dataCh:    make(chan *displaymodel.Table, cfg.MaxRPS),
+		summaryCh: make(chan *displaymodel.Table),
 		stopCh:    make(chan struct{}, 1),
 	}
+}
+
+func (r *Renderer) SendData(data *displaymodel.Table) {
+	r.dataCh <- data
+}
+
+func (r *Renderer) SendSummary(data *displaymodel.Table) {
+	r.summaryCh <- data
 }
 
 func (r *Renderer) Close(wg *sync.WaitGroup) {
@@ -57,7 +62,11 @@ func (r *Renderer) Close(wg *sync.WaitGroup) {
 }
 
 func (r *Renderer) Draw(wg *sync.WaitGroup) {
-	defer wg.Done()
+	defer func() {
+		close(r.dataCh)
+		close(r.summaryCh)
+		wg.Done()
+	}()
 
 	err := termbox.Init()
 	if err != nil {
