@@ -9,6 +9,7 @@ import (
 	stat "ddos/internal/stat/app"
 	statservice "ddos/internal/stat/domain/service"
 	"github.com/alexflint/go-arg"
+	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -20,22 +21,13 @@ func main() {
 	cfg := &config.Config{}
 	arg.MustParse(cfg)
 
-	if cfg.StdOutFile != "" {
-		outfile, err := os.Create(cfg.StdOutFile)
+	if cfg.LogFile != "" {
+		logfile, err := os.Create(cfg.LogFile)
 		if err != nil {
 			panic(err)
 		}
-		defer func() { _ = outfile.Close() }()
-		os.Stdout = outfile
-	}
-
-	if cfg.StdErrFile != "" {
-		errfile, err := os.Create(cfg.StdErrFile)
-		if err != nil {
-			panic(err)
-		}
-		defer func() { _ = errfile.Close() }()
-		os.Stderr = errfile
+		defer func() { _ = logfile.Close() }()
+		log.SetOutput(logfile)
 	}
 
 	exitCh := make(chan os.Signal, 1)
