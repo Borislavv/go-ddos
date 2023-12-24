@@ -38,7 +38,7 @@ func main() {
 	smCh := make(chan *displaymodel.Table)
 
 	cl := statservice.NewCollector(cfg)
-	st := stat.New(ctx, dtCh, smCh, cl)
+	st := stat.New(ctx, cfg, dtCh, smCh, cl)
 	rd := displayservice.NewRenderer(ctx, dtCh, smCh, exitCh)
 	di := display.New(ctx, rd)
 	dd := ddos.New(ctx, cfg, di, cl)
