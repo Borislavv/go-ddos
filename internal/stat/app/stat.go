@@ -10,6 +10,7 @@ import (
 )
 
 type Stat struct {
+	mu        *sync.RWMutex
 	ctx       context.Context
 	dataCh    chan<- *displaymodel.Table
 	summaryCh chan<- *displaymodel.Table
@@ -23,6 +24,7 @@ func New(
 	collector *statservice.Collector,
 ) *Stat {
 	return &Stat{
+		mu:        &sync.RWMutex{},
 		ctx:       ctx,
 		dataCh:    dataCh,
 		summaryCh: summaryCh,
@@ -54,32 +56,76 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 		"avg. total req. duration",
 		"avg. success req. duration",
 		"avg. failed req. duration",
+		"current percentile",
 	}
-
+	
 	for {
-		row := []string{
-			s.collector.Duration().String(),
-			fmt.Sprintf("%d", s.collector.RPS()),
-			fmt.Sprintf("%d", s.collector.Workers()),
-			fmt.Sprintf("%d", s.collector.Total()),
-			fmt.Sprintf("%d", s.collector.Success()),
-			fmt.Sprintf("%d", s.collector.Failed()),
-			s.collector.AvgTotalDuration().String(),
-			s.collector.AvgSuccessDuration().String(),
-			s.collector.AvgFailedDuration().String(),
-		}
-
 		select {
 		case <-s.ctx.Done():
+			var rows [][]string
+			for percentile := int64(1); percentile <= s.collector.Percentiles(); percentile++ {
+				metric, ok := s.collector.Metric(percentile)
+				if !ok {
+					continue
+				}
+
+				rows = append(rows, []string{
+					metric.Duration().String(),
+					fmt.Sprintf("%d", metric.RPS()),
+					fmt.Sprintf("%d", metric.Workers()),
+					fmt.Sprintf("%d", metric.Total()),
+					fmt.Sprintf("%d", metric.Success()),
+					fmt.Sprintf("%d", metric.Failed()),
+					metric.AvgTotalDuration().String(),
+					metric.AvgSuccessDuration().String(),
+					metric.AvgFailedDuration().String(),
+					fmt.Sprintf("%d of %d", percentile, s.collector.Percentiles()),
+				})
+			}
+
+			rows = append(rows, []string{
+				s.collector.SummaryDuration().String(),
+				fmt.Sprintf("%d", s.collector.SummaryRPS()),
+				fmt.Sprintf("%d", s.collector.Workers()),
+				fmt.Sprintf("%d", s.collector.SummaryTotal()),
+				fmt.Sprintf("%d", s.collector.SummarySuccess()),
+				fmt.Sprintf("%d", s.collector.SummaryFailed()),
+				s.collector.SummaryAvgTotalDuration().String(),
+				s.collector.SummaryAvgSuccessDuration().String(),
+				s.collector.SummaryAvgFailedDuration().String(),
+				"All",
+			})
+
 			s.summaryCh <- &displaymodel.Table{
 				Header: header,
-				Rows:   [][]string{row},
+				Rows:   rows,
 			}
 			return
 		case <-statTicker.C:
+			var rows [][]string
+			for percentile := int64(1); percentile <= s.collector.Percentiles(); percentile++ {
+				metric, ok := s.collector.Metric(percentile)
+				if !ok {
+					continue
+				}
+
+				rows = append(rows, []string{
+					metric.Duration().String(),
+					fmt.Sprintf("%d", metric.RPS()),
+					fmt.Sprintf("%d", metric.Workers()),
+					fmt.Sprintf("%d", metric.Total()),
+					fmt.Sprintf("%d", metric.Success()),
+					fmt.Sprintf("%d", metric.Failed()),
+					metric.AvgTotalDuration().String(),
+					metric.AvgSuccessDuration().String(),
+					metric.AvgFailedDuration().String(),
+					fmt.Sprintf("%d of %d", percentile, s.collector.Percentiles()),
+				})
+			}
+
 			s.dataCh <- &displaymodel.Table{
 				Header: header,
-				Rows:   [][]string{row},
+				Rows:   rows,
 			}
 		}
 	}
