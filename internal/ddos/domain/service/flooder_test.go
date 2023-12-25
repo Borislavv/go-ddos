@@ -4,12 +4,14 @@ import (
 	"context"
 	"ddos/config"
 	display "ddos/internal/display/app"
-	displaymodel "ddos/internal/display/domain/model"
 	displayservice "ddos/internal/display/domain/service"
+	logservice "ddos/internal/log/domain/service"
 	statservice "ddos/internal/stat/domain/service"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -26,21 +28,29 @@ func BenchmarkFlooder_sendRequest(b *testing.B) {
 	defer server.Close()
 
 	cfg := &config.Config{
-		MaxRPS:      10000000,
+		MaxRPS:      10000,
 		Percentiles: 1,
 		MaxWorkers:  10,
 		Duration:    "10m",
-		URL:         server.URL,
+		URL:         fmt.Sprintf("%v?foo=bar", server.URL),
 	}
 
 	exitCh := make(chan os.Signal, 1)
-	dtCh := make(chan *displaymodel.Table, cfg.MaxRPS)
-	smCh := make(chan *displaymodel.Table)
+	logsCh := make(chan string, int64(cfg.MaxRPS)*cfg.MaxWorkers)
 
-	renderer := displayservice.NewRenderer(ctx, dtCh, smCh, exitCh)
+	logger := logservice.NewLogger(ctx, cfg, logsCh)
+	renderer := displayservice.NewRenderer(ctx, cfg, exitCh)
 	displayer := display.New(ctx, renderer)
 	collector := statservice.NewCollector(cfg)
-	flooder := NewFlooder(ctx, cfg, displayer, collector)
+	flooder := NewFlooder(ctx, cfg, displayer, logger, collector)
+
+	wg := &sync.WaitGroup{}
+	defer wg.Wait()
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go flooder.handleResponsesProcessor(wg)
+	}
+	defer close(flooder.respProcCh)
 
 	b.ResetTimer()
 	b.SetParallelism(10)
