@@ -47,19 +47,19 @@ func (s *Stat) Run(mwg *sync.WaitGroup) {
 func (s *Stat) sendStat(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	statTicker := time.NewTicker(time.Millisecond * 100)
+	statTicker := time.NewTicker(time.Millisecond * 75)
 
 	header := []string{
 		"duration",
 		"rps",
-		"workers",
+		"workers/processors",
 		"total reqs.",
 		"success reqs.",
 		"failed reqs.",
-		"avg. total req. duration",
-		"avg. success req. duration",
-		"avg. failed req. duration",
-		"current percentile",
+		"avg. total reqs. dur.",
+		"avg. success reqs. dur.",
+		"avg. failed reqs. dur.",
+		"stages",
 		"goroutines",
 	}
 
@@ -84,7 +84,7 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 				row = []string{
 					metric.Duration().String(),
 					fmt.Sprintf("%d", metric.RPS()),
-					fmt.Sprintf("%d", metric.Workers()),
+					fmt.Sprintf("%d / %d", metric.Workers(), metric.Processors()),
 					fmt.Sprintf("%d", metric.Total()),
 					fmt.Sprintf("%d", metric.Success()),
 					fmt.Sprintf("%d", metric.Failed()),
@@ -101,7 +101,7 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 			footer := []string{
 				s.collector.SummaryDuration().String(),
 				fmt.Sprintf("%d", s.collector.SummaryRPS()),
-				fmt.Sprintf("%d", s.collector.Workers()),
+				fmt.Sprintf("%d / %d", s.collector.Workers(), s.collector.Processors()),
 				fmt.Sprintf("%d", s.collector.SummaryTotal()),
 				fmt.Sprintf("%d", s.collector.SummarySuccess()),
 				fmt.Sprintf("%d", s.collector.SummaryFailed()),
@@ -137,7 +137,7 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 				row = []string{
 					metric.Duration().String(),
 					fmt.Sprintf("%d", metric.RPS()),
-					fmt.Sprintf("%d", metric.Workers()),
+					fmt.Sprintf("%d / %d", metric.Workers(), metric.Processors()),
 					fmt.Sprintf("%d", metric.Total()),
 					fmt.Sprintf("%d", metric.Success()),
 					fmt.Sprintf("%d", metric.Failed()),
