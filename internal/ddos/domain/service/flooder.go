@@ -183,5 +183,7 @@ func (f *Flooder) logFailedRequest(response *model.Response) {
 		}
 
 		f.logger.Println(string(bytes))
+	} else {
+		_ = response.Resp.Body.Close()
 	}
 }
