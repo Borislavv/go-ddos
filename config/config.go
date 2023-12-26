@@ -3,9 +3,9 @@ package config
 type Config struct {
 	// URL is a string with target DDOS url.
 	URL string `arg:"-u,env:URL,required"`
-	// ResponseData is string which contains expected response data.
+	// ExpectedResponseData is string which contains expected response data.
 	// If it does not match, request will be marked as failed.
-	ResponseData string `arg:"-d,env:RESPONSE_DATA"`
+	ExpectedResponseData string `arg:"-e,env:EXPECTED_RESPONSE_DATA"`
 	// MaxRPS is a maximum number of requests per one second.
 	MaxRPS int `arg:"-r,env:MAX_RPS"                         default:"10"`
 	// MaxWorkers is a maximum workers number which will be spawn.
