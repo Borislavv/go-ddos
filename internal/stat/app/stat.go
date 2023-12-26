@@ -63,7 +63,7 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 		"goroutines",
 	}
 
-	rendererRows := make(map[int64][]string, s.cfg.Percentiles)
+	rendererRows := make(map[int64][]string, s.cfg.Stages)
 
 	for {
 		select {
