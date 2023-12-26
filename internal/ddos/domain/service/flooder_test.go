@@ -28,11 +28,11 @@ func BenchmarkFlooder_sendRequest(b *testing.B) {
 	defer server.Close()
 
 	cfg := &config.Config{
-		MaxRPS:      10000,
-		Percentiles: 1,
-		MaxWorkers:  10,
-		Duration:    "10m",
-		URL:         fmt.Sprintf("%v?foo=bar", server.URL),
+		MaxRPS:     10000,
+		Stages:     1,
+		MaxWorkers: 10,
+		Duration:   "10m",
+		URL:        fmt.Sprintf("%v?foo=bar", server.URL),
 	}
 
 	exitCh := make(chan os.Signal, 1)
