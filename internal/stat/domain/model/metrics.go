@@ -14,7 +14,8 @@ type Metrics struct {
 	startedAt int64 // ms
 	duration  int64 // ns
 	// Workers
-	workers int64
+	workers    int64 // request sender workers
+	processors int64 // response processors
 	// requests
 	rps     int64
 	total   int64
@@ -67,12 +68,22 @@ func (m *Metrics) AddWorkers(n int64) {
 	}
 }
 
+func (m *Metrics) Processors() int64 {
+	return atomic.LoadInt64(&m.processors)
+}
+
+func (m *Metrics) AddProcessors(n int64) {
+	if atomic.LoadInt64(&m.isMutable) == 1 {
+		atomic.AddInt64(&m.processors, n)
+	}
+}
+
 func (m *Metrics) SetRPS() {
 	if atomic.LoadInt64(&m.isMutable) == 1 {
 		atomic.CompareAndSwapInt64(
 			&m.rps,
 			atomic.LoadInt64(&m.rps),
-			int64(float64(atomic.LoadInt64(&m.total))/time.Since(time.UnixMilli(atomic.LoadInt64(&m.startedAt))).Seconds()),
+			int64(float64(m.Total())/time.Since(m.StartedAt()).Seconds()),
 		)
 	}
 }
