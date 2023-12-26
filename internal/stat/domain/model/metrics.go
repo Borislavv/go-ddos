@@ -31,6 +31,17 @@ func NewMetric() *Metrics {
 	return &Metrics{mu: &sync.RWMutex{}, isMutable: 1, startedAt: time.Now().UnixMilli()}
 }
 
+func (m *Metrics) Clone() *Metrics {
+	return &Metrics{
+		mu:         m.mu,
+		isMutable:  1,
+		startedAt:  time.Now().UnixMilli(),
+		workers:    m.Workers(),
+		processors: m.Processors(),
+		rps:        m.RPS(),
+	}
+}
+
 func (m *Metrics) Lock() {
 	atomic.CompareAndSwapInt64(&m.isMutable, atomic.LoadInt64(&m.isMutable), 0)
 }
