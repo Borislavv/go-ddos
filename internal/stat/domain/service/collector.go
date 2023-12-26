@@ -40,15 +40,15 @@ func NewCollector(cfg *config.Config) *Collector {
 	c := &Collector{
 		mu:               &sync.RWMutex{},
 		cfg:              cfg,
-		durPerPercentile: time.Duration(math.Ceil(float64(dur.Nanoseconds() / cfg.Percentiles))),
+		durPerPercentile: time.Duration(math.Ceil(float64(dur.Nanoseconds() / cfg.Stages))),
 	}
 
-	if cfg.Percentiles <= 0 {
-		atomic.CompareAndSwapInt64(&cfg.Percentiles, cfg.Percentiles, 1)
+	if cfg.Stages <= 0 {
+		atomic.CompareAndSwapInt64(&cfg.Stages, cfg.Stages, 1)
 	}
 
 	c.mu.Lock()
-	c.percentilesMetrics = make(map[int64]*model.Metrics, cfg.Percentiles)
+	c.percentilesMetrics = make(map[int64]*model.Metrics, cfg.Stages)
 	c.mu.Unlock()
 
 	return c
@@ -77,9 +77,7 @@ func (c *Collector) currentMetric() *model.Metrics {
 
 		if prevMetric, isset := c.percentilesMetrics[c.currentPercentile()-1]; isset {
 			prevMetric.Lock()
-			metric.SetRPS()
-			metric.AddWorkers(prevMetric.Workers())
-			metric.AddProcessors(prevMetric.Processors())
+			metric = prevMetric.Clone()
 		}
 
 		c.percentilesMetrics[c.currentPercentile()] = metric
@@ -98,7 +96,7 @@ func (c *Collector) firstMetric() *model.Metrics {
 
 // Percentiles number. This value is not mutable.
 func (c *Collector) Percentiles() int64 {
-	return c.cfg.Percentiles
+	return c.cfg.Stages
 }
 
 func (c *Collector) Metric(percentile int64) (metric *model.Metrics, found bool) {
