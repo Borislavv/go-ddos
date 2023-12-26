@@ -77,6 +77,7 @@ func (c *Collector) currentMetric() *model.Metrics {
 
 		if prevMetric, isset := c.percentilesMetrics[c.currentPercentile()-1]; isset {
 			prevMetric.Lock()
+			metric.SetRPS()
 			metric.AddWorkers(prevMetric.Workers())
 			metric.AddProcessors(prevMetric.Processors())
 		}
@@ -153,6 +154,13 @@ func (c *Collector) AddProcessor() {
 	defer c.mu.Unlock()
 
 	c.currentMetric().AddProcessors(1)
+}
+
+func (c *Collector) RemoveProcessor() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.currentMetric().AddProcessors(-1)
 }
 
 func (c *Collector) Processors() int64 {

@@ -20,11 +20,13 @@ type Flooder struct {
 	mu  *sync.RWMutex
 	ctx context.Context
 
-	respProcCh chan *model.Response
-	cfg        *ddos.Config
-	display    *display.Display
-	logger     *logservice.Logger
-	collector  *statservice.Collector
+	exitProcessorsCh    chan struct{}
+	closeOneProcessorCh chan struct{}
+	respProcCh          chan *model.Response
+	cfg                 *ddos.Config
+	display             *display.Display
+	logger              *logservice.Logger
+	collector           *statservice.Collector
 }
 
 func NewFlooder(
@@ -35,13 +37,15 @@ func NewFlooder(
 	collector *statservice.Collector,
 ) *Flooder {
 	return &Flooder{
-		mu:         &sync.RWMutex{},
-		respProcCh: make(chan *model.Response, int64(cfg.MaxRPS)*cfg.MaxWorkers),
-		ctx:        ctx,
-		cfg:        cfg,
-		display:    display,
-		logger:     logger,
-		collector:  collector,
+		mu:                  &sync.RWMutex{},
+		exitProcessorsCh:    make(chan struct{}, 1),
+		closeOneProcessorCh: make(chan struct{}, cfg.MaxWorkers),
+		respProcCh:          make(chan *model.Response, int64(cfg.MaxRPS)*cfg.MaxWorkers),
+		ctx:                 ctx,
+		cfg:                 cfg,
+		display:             display,
+		logger:              logger,
+		collector:           collector,
 	}
 }
 
@@ -72,6 +76,9 @@ func (f *Flooder) handleThreadsSpawner(wg *sync.WaitGroup, lwg *sync.WaitGroup) 
 
 		select {
 		case <-f.ctx.Done():
+			// stop all resp processors by
+			// broadcasting by closing ch
+			close(f.exitProcessorsCh)
 			return
 		case <-threadSpawnTicker.C:
 			rps := f.collector.RPS()
@@ -82,10 +89,15 @@ func (f *Flooder) handleThreadsSpawner(wg *sync.WaitGroup, lwg *sync.WaitGroup) 
 }
 
 func (f *Flooder) spawnResponseProcessorThread(wg *sync.WaitGroup, crps int64) {
-	if crps/3 > f.collector.Processors() && f.collector.Processors() < f.collector.Workers()*3 {
+	rpsIdx := crps / 3
+	if rpsIdx <= 0 {
+		rpsIdx = 1
+	}
+	if rpsIdx > f.collector.Processors() && f.collector.Processors() < f.collector.Workers()*3 {
 		wg.Add(1)
 		go f.handleResponsesProcessor(wg)
-		f.collector.AddProcessor()
+	} else if float64(f.collector.Processors()/rpsIdx) > 1.15 {
+		f.closeOneProcessorCh <- struct{}{}
 	}
 }
 
@@ -131,8 +143,19 @@ func (f *Flooder) sendRequest() {
 
 func (f *Flooder) handleResponsesProcessor(wg *sync.WaitGroup) {
 	defer wg.Done()
-	for response := range f.respProcCh {
-		f.processResponse(response)
+	f.collector.AddProcessor()
+	for {
+		select {
+		case <-f.exitProcessorsCh:
+			// closing all processors by exit action
+			return
+		case <-f.closeOneProcessorCh:
+			// closing one single processor by balancer
+			f.collector.RemoveProcessor()
+			return
+		case response := <-f.respProcCh:
+			f.processResponse(response)
+		}
 	}
 }
 
