@@ -167,14 +167,14 @@ func (f *Flooder) processResponse(response *model.Response) {
 			}
 		}
 
-		if f.cfg.ResponseData != "" {
+		if f.cfg.ExpectedResponseData != "" {
 			bytes, rerr := io.ReadAll(response.Resp.Body)
 			if rerr != nil {
 				f.logger.Println(rerr.Error())
 				return
 			}
 			l.Data = model.Data{
-				Expected: f.cfg.ResponseData,
+				Expected: f.cfg.ExpectedResponseData,
 				Gotten:   string(bytes),
 			}
 		}
