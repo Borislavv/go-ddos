@@ -33,7 +33,6 @@ type Flooder struct {
 func NewFlooder(
 	ctx context.Context,
 	cfg *ddos.Config,
-	display *display.Display,
 	logger *logservice.Logger,
 	collector *statservice.Collector,
 ) *Flooder {
@@ -44,7 +43,6 @@ func NewFlooder(
 		respProcCh:          make(chan *model.Response, int64(cfg.MaxRPS)*cfg.MaxWorkers),
 		ctx:                 ctx,
 		cfg:                 cfg,
-		display:             display,
 		logger:              logger,
 		collector:           collector,
 	}
