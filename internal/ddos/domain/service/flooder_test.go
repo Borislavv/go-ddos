@@ -48,7 +48,7 @@ func BenchmarkFlooder_sendRequest(b *testing.B) {
 	defer wg.Wait()
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		go flooder.handleResponsesProcessor(wg)
+		go flooder.spawnResponseProcessor(wg)
 	}
 	defer close(flooder.respProcCh)
 
