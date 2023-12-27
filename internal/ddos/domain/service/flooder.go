@@ -12,6 +12,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -53,13 +54,49 @@ func (f *Flooder) Run() {
 	lwg := &sync.WaitGroup{}
 	defer lwg.Wait()
 	lwg.Add(1)
-	go f.handleResponsesProcessor(lwg)
+	go f.spawnResponseProcessor(lwg)
 	defer close(f.respProcCh)
 
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 	wg.Add(1)
+	//go f.spawnRequestSender(wg)
 	go f.handleThreadsSpawner(wg, lwg)
+}
+
+//func (f *Flooder) spawnRequestSender(wg *sync.WaitGroup) {
+//	defer wg.Done()
+//
+//	f.collector.AddWorker()
+//
+//	for {
+//		select {
+//		case <-f.ctx.Done():
+//			return
+//		case <-requestSendTicker.C:
+//			f.sendRequest()
+//		}
+//	}
+//}
+
+func (f *Flooder) spawnResponseProcessor(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	f.collector.AddProcessor()
+
+	for {
+		select {
+		case <-f.exitProcessorsCh:
+			// closing all processors by exit action
+			return
+		case <-f.closeOneProcessorCh:
+			// closing one single processor by balancer
+			f.collector.RemoveProcessor()
+			return
+		case response := <-f.respProcCh:
+			f.processResponse(response)
+		}
+	}
 }
 
 func (f *Flooder) handleThreadsSpawner(wg *sync.WaitGroup, lwg *sync.WaitGroup) {
@@ -93,10 +130,11 @@ func (f *Flooder) spawnResponseProcessorThread(wg *sync.WaitGroup, crps int64) {
 	if rpsIdx <= 0 {
 		rpsIdx = 1
 	}
+
 	if rpsIdx > f.collector.Processors() && f.collector.Processors() < f.collector.Workers()*3 {
 		wg.Add(1)
-		go f.handleResponsesProcessor(wg)
-	} else if float64(f.collector.Processors()/rpsIdx) > 1.15 {
+		go f.spawnResponseProcessor(wg)
+	} else if float64(f.collector.Processors())/float64(rpsIdx) > 1.15 && f.collector.Processors() > f.cfg.MaxWorkers {
 		f.closeOneProcessorCh <- struct{}{}
 	}
 }
@@ -125,38 +163,18 @@ func (f *Flooder) sendRequest() {
 
 	s := time.Now()
 	defer func() {
-		f.collector.AddTotal()
 		f.collector.AddTotalDuration(time.Since(s))
 	}()
 
+	//resp, err := http.Get(f.cfg.URL)
 	resp, err := http.Get(fmt.Sprintf("%v&ts=%d", f.cfg.URL, rand.Uint64()))
 	if err != nil || resp.StatusCode != 200 {
-		f.collector.AddFailed()
 		f.collector.AddFailedDuration(time.Since(s))
 	} else {
-		f.collector.AddSuccess()
 		f.collector.AddSuccessDuration(time.Since(s))
 	}
 
 	f.sendResponseOnProcessing(resp, err)
-}
-
-func (f *Flooder) handleResponsesProcessor(wg *sync.WaitGroup) {
-	defer wg.Done()
-	f.collector.AddProcessor()
-	for {
-		select {
-		case <-f.exitProcessorsCh:
-			// closing all processors by exit action
-			return
-		case <-f.closeOneProcessorCh:
-			// closing one single processor by balancer
-			f.collector.RemoveProcessor()
-			return
-		case response := <-f.respProcCh:
-			f.processResponse(response)
-		}
-	}
 }
 
 func (f *Flooder) sendResponseOnProcessing(resp *http.Response, err error) {
@@ -167,7 +185,19 @@ func (f *Flooder) sendResponseOnProcessing(resp *http.Response, err error) {
 }
 
 func (f *Flooder) processResponse(response *model.Response) {
+	isFailed := false
+	defer func() {
+		if isFailed {
+			f.collector.AddFailed()
+		} else {
+			f.collector.AddSuccess()
+		}
+		f.collector.AddTotal()
+	}()
+
 	if response.Err != nil {
+		isFailed = true
+
 		bytes, merr := json.MarshalIndent(model.Log{Error: response.Err.Error()}, "", "  ")
 		if merr != nil {
 			f.logger.Println(merr.Error())
@@ -177,6 +207,7 @@ func (f *Flooder) processResponse(response *model.Response) {
 		f.logger.Println(string(bytes))
 	} else if response.Resp.StatusCode != 200 {
 		defer func() { _ = response.Resp.Body.Close() }()
+		isFailed = true
 
 		l := model.Log{
 			URL:        response.Resp.Request.URL.String(),
@@ -196,9 +227,24 @@ func (f *Flooder) processResponse(response *model.Response) {
 				f.logger.Println(rerr.Error())
 				return
 			}
-			l.Data = model.Data{
-				Expected: f.cfg.ExpectedResponseData,
-				Gotten:   string(bytes),
+
+			var responseStruct interface{}
+			if err := json.Unmarshal(bytes, &responseStruct); err != nil {
+				f.logger.Println(err.Error())
+				return
+			}
+
+			var expectedResponseStruct interface{}
+			if err := json.Unmarshal([]byte(f.cfg.ExpectedResponseData), &expectedResponseStruct); err != nil {
+				fmt.Println("Ошибка при разборе форматированного JSON:", err)
+				return
+			}
+
+			if !reflect.DeepEqual(expectedResponseStruct, responseStruct) {
+				l.Data = model.Data{
+					Expected: f.cfg.ExpectedResponseData,
+					Gotten:   string(bytes),
+				}
 			}
 		}
 
@@ -209,7 +255,53 @@ func (f *Flooder) processResponse(response *model.Response) {
 		}
 
 		f.logger.Println(string(bytes))
-	} else {
-		_ = response.Resp.Body.Close()
+	} else if f.cfg.ExpectedResponseData != "" {
+		defer func() { _ = response.Resp.Body.Close() }()
+
+		bytes, rerr := io.ReadAll(response.Resp.Body)
+		if rerr != nil {
+			f.logger.Println(rerr.Error())
+			return
+		}
+
+		var responseStruct interface{}
+		if err := json.Unmarshal(bytes, &responseStruct); err != nil {
+			f.logger.Println(err.Error())
+			return
+		}
+
+		var expectedResponseStruct interface{}
+		if err := json.Unmarshal([]byte(f.cfg.ExpectedResponseData), &expectedResponseStruct); err != nil {
+			fmt.Println("Ошибка при разборе форматированного JSON:", err)
+			return
+		}
+
+		if !reflect.DeepEqual(expectedResponseStruct, responseStruct) {
+			isFailed = true
+
+			l := model.Log{
+				URL:        response.Resp.Request.URL.String(),
+				StatusCode: response.Resp.StatusCode,
+				Data: model.Data{
+					Expected: f.cfg.ExpectedResponseData,
+					Gotten:   string(bytes),
+				},
+			}
+
+			if len(f.cfg.LogHeaders) > 0 {
+				l.Headers = make(map[string][]string, len(f.cfg.LogHeaders))
+				for _, h := range f.cfg.LogHeaders {
+					l.Headers[h] = response.Resp.Header.Values(h)
+				}
+			}
+
+			logBytes, merr := json.MarshalIndent(l, "", "  ")
+			if merr != nil {
+				f.logger.Println(merr.Error())
+				return
+			}
+
+			f.logger.Println(string(logBytes))
+		}
 	}
 }
