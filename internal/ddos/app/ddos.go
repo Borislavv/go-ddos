@@ -38,6 +38,6 @@ func (app *DDOS) Run(mwg *sync.WaitGroup) {
 	defer mwg.Done()
 
 	service.
-		NewFlooder(app.ctx, app.cfg, app.display, app.logger, app.collector).
+		NewFlooder(app.ctx, app.cfg, app.logger, app.collector).
 		Run()
 }
