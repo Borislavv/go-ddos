@@ -3,14 +3,11 @@ package ddosservice
 import (
 	"context"
 	"ddos/config"
-	display "ddos/internal/display/app"
-	displayservice "ddos/internal/display/domain/service"
 	logservice "ddos/internal/log/domain/service"
 	statservice "ddos/internal/stat/domain/service"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"sync"
 	"testing"
 )
@@ -35,14 +32,11 @@ func BenchmarkFlooder_sendRequest(b *testing.B) {
 		URL:        fmt.Sprintf("%v?foo=bar", server.URL),
 	}
 
-	exitCh := make(chan os.Signal, 1)
 	logsCh := make(chan string, int64(cfg.MaxRPS)*cfg.MaxWorkers)
 
 	logger := logservice.NewLogger(ctx, cfg, logsCh)
-	renderer := displayservice.NewRenderer(ctx, cfg, exitCh)
-	displayer := display.New(ctx, renderer)
 	collector := statservice.NewCollector(cfg)
-	flooder := NewFlooder(ctx, cfg, displayer, logger, collector)
+	flooder := NewFlooder(ctx, cfg, logger, collector)
 
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
