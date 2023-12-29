@@ -1,11 +1,11 @@
-package vote_enum
+package enum
 
 type VoteStrategy string
 
 const (
-	AllVoters       VoteStrategy = "all"
-	ManyVoters      VoteStrategy = "many"
-	AtLeastOneVoter VoteStrategy = "at_least_one"
+	AllVotersStrategy       VoteStrategy = "all"
+	ManyVotersStrategy      VoteStrategy = "many"
+	AtLeastOneVoterStrategy VoteStrategy = "at_least_one"
 )
 
 func (s VoteStrategy) String() string {
