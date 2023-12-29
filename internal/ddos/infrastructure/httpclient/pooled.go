@@ -2,7 +2,8 @@ package httpclient
 
 import (
 	"context"
-	"ddos/internal/ddos/infrastructure/http/middleware"
+	config "ddos/internal/ddos/infrastructure/httpclient/config"
+	middleware "ddos/internal/ddos/infrastructure/httpclient/middleware"
 	"net/http"
 )
 
@@ -17,26 +18,21 @@ type Pool struct {
 	resp    middleware.ResponseHandler
 }
 
-func NewPool(
-	ctx context.Context,
-	initSize int,
-	maxSize int,
-	creator func() *http.Client,
-) (*Pool, CancelFunc) {
-	if initSize > maxSize {
-		initSize = maxSize
+func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Client) (*Pool, CancelFunc) {
+	if cfg.PoolInitSize > cfg.PoolMaxSize {
+		cfg.PoolInitSize = cfg.PoolMaxSize
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 
 	p := &Pool{
 		ctx:     ctx,
-		pool:    make(chan *http.Client, maxSize),
+		pool:    make(chan *http.Client, cfg.PoolMaxSize),
 		creator: creator,
 		cancel:  cancel,
 	}
 
-	for i := 0; i < initSize; i++ {
+	for i := 0; i < cfg.PoolInitSize; i++ {
 		p.pool <- creator()
 	}
 
@@ -61,14 +57,14 @@ func (p *Pool) Do(req *http.Request) (*http.Response, error) {
 	return p.resp.Handle(p.req.Do(req.WithContext(p.ctx)))
 }
 
-func (p *Pool) OneReq(middlewares ...middleware.RequestMiddlewareFunc) Pooled {
+func (p *Pool) OnReq(middlewares ...middleware.RequestMiddlewareFunc) Pooled {
 	for i := len(middlewares) - 1; i >= 0; i-- {
 		p.req = middlewares[i].Exec(p.req)
 	}
 	return p
 }
 
-func (p *Pool) OneResp(middlewares ...middleware.ResponseMiddlewareFunc) Pooled {
+func (p *Pool) OnResp(middlewares ...middleware.ResponseMiddlewareFunc) Pooled {
 	for i := len(middlewares) - 1; i >= 0; i-- {
 		p.resp = middlewares[i].Exec(p.resp)
 	}
@@ -79,16 +75,10 @@ func (p *Pool) Len() int {
 	return len(p.pool)
 }
 
-func (p *Pool) Cap() int {
-	return cap(p.pool)
-}
-
 func (p *Pool) get() *http.Client {
 	select {
 	case c := <-p.pool:
 		return c
-	case p.pool <- p.creator():
-		return p.get()
 	default:
 		return p.creator()
 	}
