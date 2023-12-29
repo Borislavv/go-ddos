@@ -1,8 +1,8 @@
-package req
+package sender
 
 import (
 	"ddos/internal/ddos/domain/service/processor/resp"
-	reqmiddleware "ddos/internal/ddos/domain/service/sender/req/middleware"
+	"ddos/internal/ddos/domain/service/sender/middleware/req"
 	"ddos/internal/ddos/infrastructure/httpclient"
 	"ddos/internal/ddos/infrastructure/httpclient/middleware"
 	logservice "ddos/internal/log/domain/service"
@@ -66,17 +66,11 @@ func (s *Sender) Send(req *http.Request) {
 	}
 }
 
-func (s *Sender) addRequestMiddlewares() {
+func (s *Sender) addMiddlewares() {
 	s.httpClient.
 		OnReq(
 			reqmiddleware.RandUrl,
 			reqmiddleware.AddTimestamp,
-		)
-}
-
-func (s *Sender) addResponseMiddlewares() {
-	s.httpClient.
-		OnReq(
-			reqmiddleware.AddTimestamp,
-		)
+		).
+		OnResp()
 }
