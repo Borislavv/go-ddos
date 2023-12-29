@@ -1,4 +1,4 @@
-package model
+package balancer
 
 import (
 	"ddos/config"
