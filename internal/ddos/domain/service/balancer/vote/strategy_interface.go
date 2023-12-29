@@ -1,5 +1,5 @@
-package votestrategy
+package vote
 
-type VoteStrategy interface {
+type Strategy interface {
 	IsFor() bool
 }
