@@ -1,8 +1,7 @@
 package reqmiddleware
 
 import (
-	ddos "ddos/internal/ddos/app"
-	"ddos/internal/ddos/infrastructure/httpclient"
+	"ddos/internal/ddos/infrastructure/httpclient/middleware"
 	"errors"
 	"math/rand"
 	"net/http"
@@ -10,12 +9,14 @@ import (
 	"time"
 )
 
-func RandUrl(next httpclient.RequestModifier) httpclient.RequestModifier {
-	return httpclient.RequestModifierFunc(func(req *http.Request) (*http.Response, error) {
+var URLs = []string{}
+
+func RandUrl(next httpclientmiddleware.RequestModifier) httpclientmiddleware.RequestModifier {
+	return httpclientmiddleware.RequestModifierFunc(func(req *http.Request) (*http.Response, error) {
 		rand.Seed(time.Now().UnixNano())
 
-		if len(ddos.URLs) != 0 {
-			u := ddos.URLs[rand.Intn(len(ddos.URLs)+1)]
+		if len(URLs) != 0 {
+			u := URLs[rand.Intn(len(URLs)+1)]
 			p, err := url.Parse(u)
 			if err != nil {
 				return nil, errors.New("unable to parse given url, " + err.Error())
