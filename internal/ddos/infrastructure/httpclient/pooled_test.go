@@ -2,12 +2,12 @@ package httpclient
 
 import (
 	"context"
-	"ddos/config"
-	reqmiddleware "ddos/internal/ddos/domain/service/sender/req/middleware"
-	"ddos/internal/ddos/infrastructure/http/middleware"
+	"ddos/internal/ddos/infrastructure/httpclient/config"
+	"ddos/internal/ddos/infrastructure/httpclient/middleware"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -22,26 +22,20 @@ func TestPooled_Do(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cfg := &config.Config{
-		URL:                   server.URL,
-		HttpClientPoolMinSize: 10,
-		HttpClientPoolMaxSize: 100,
+	cfg := &httpclientconfig.Config{
+		PoolInitSize: 10,
+		PoolMaxSize:  1024,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	client, clientCancel := NewPool(
-		ctx,
-		cfg.HttpClientPoolMinSize,
-		cfg.HttpClientPoolMaxSize,
-		func() *http.Client {
-			return &http.Client{Timeout: time.Minute}
-		},
-	)
+	client, clientCancel := NewPool(ctx, cfg, func() *http.Client {
+		return &http.Client{Timeout: time.Minute}
+	})
 	defer clientCancel()
 
-	req, err := http.NewRequest("GET", cfg.URL, nil)
+	req, err := http.NewRequest("GET", server.URL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,25 +63,19 @@ func TestPooled_Use(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cfg := &config.Config{
-		URL:                   server.URL,
-		HttpClientPoolMinSize: 10,
-		HttpClientPoolMaxSize: 100,
+	cfg := &httpclientconfig.Config{
+		PoolInitSize: 10,
+		PoolMaxSize:  1024,
 	}
 
-	req, err := http.NewRequest("GET", cfg.URL, nil)
+	req, err := http.NewRequest("GET", server.URL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	client, clientCancel := NewPool(
-		context.Background(),
-		cfg.HttpClientPoolMinSize,
-		cfg.HttpClientPoolMaxSize,
-		func() *http.Client {
-			return &http.Client{Timeout: time.Minute}
-		},
-	)
+	client, clientCancel := NewPool(context.Background(), cfg, func() *http.Client {
+		return &http.Client{Timeout: time.Minute}
+	})
 	defer clientCancel()
 
 	type Counter struct {
@@ -96,18 +84,28 @@ func TestPooled_Use(t *testing.T) {
 	counter := &Counter{}
 
 	client.
-		OneReq(
-			reqmiddleware.AddTimestamp,
+		OnReq(
+			func(next httpclientmiddleware.RequestModifier) httpclientmiddleware.RequestModifier {
+				return httpclientmiddleware.RequestModifierFunc(func(req *http.Request) (*http.Response, error) {
+					copyValues := req.URL.Query()
+					if copyValues.Has("timestamp") {
+						copyValues.Del("timestamp")
+					}
+					copyValues.Add("timestamp", strconv.Itoa(time.Now().Nanosecond()))
+					req.URL.RawQuery = copyValues.Encode()
+					return next.Do(req)
+				})
+			},
 		).
-		OneResp(
-			func(next middleware.ResponseHandler) middleware.ResponseHandler {
-				return middleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
+		OnResp(
+			func(next httpclientmiddleware.ResponseHandler) httpclientmiddleware.ResponseHandler {
+				return httpclientmiddleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
 					counter.Responses++
 					return next.Handle(resp, err)
 				})
 			},
-			func(next middleware.ResponseHandler) middleware.ResponseHandler {
-				return middleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
+			func(next httpclientmiddleware.ResponseHandler) httpclientmiddleware.ResponseHandler {
+				return httpclientmiddleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
 					counter.Responses++
 					return next.Handle(resp, err)
 				})
@@ -133,6 +131,4 @@ func TestPooled_Use(t *testing.T) {
 	if counter.Responses != 4 {
 		t.Fatal("response middleware does not applied, counter is equals zero")
 	}
-
-	time.Sleep(time.Second)
 }
