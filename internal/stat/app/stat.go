@@ -69,7 +69,7 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 		select {
 		case <-s.ctx.Done():
 			var rows [][]string
-			for percentile := int64(1); percentile <= s.collector.Percentiles(); percentile++ {
+			for percentile := int64(1); percentile <= s.collector.Stages(); percentile++ {
 				row, ok := rendererRows[percentile]
 				if ok {
 					rows = append(rows, row)
@@ -91,7 +91,7 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 					metric.AvgTotalDuration().String(),
 					metric.AvgSuccessDuration().String(),
 					metric.AvgFailedDuration().String(),
-					fmt.Sprintf("%d of %d", percentile, s.collector.Percentiles()),
+					fmt.Sprintf("%d of %d", percentile, s.collector.Stages()),
 					fmt.Sprintf("%d", runtime.NumGoroutine()),
 				}
 
@@ -122,7 +122,7 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 			return
 		case <-statTicker.C:
 			var rows [][]string
-			for percentile := int64(1); percentile <= s.collector.Percentiles(); percentile++ {
+			for percentile := int64(1); percentile <= s.collector.Stages(); percentile++ {
 				row, ok := rendererRows[percentile]
 				if ok {
 					rows = append(rows, row)
@@ -144,7 +144,7 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 					metric.AvgTotalDuration().String(),
 					metric.AvgSuccessDuration().String(),
 					metric.AvgFailedDuration().String(),
-					fmt.Sprintf("%d of %d", percentile, s.collector.Percentiles()),
+					fmt.Sprintf("%d of %d", percentile, s.collector.Stages()),
 					fmt.Sprintf("%d", runtime.NumGoroutine()),
 				}
 
