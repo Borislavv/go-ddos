@@ -4,9 +4,10 @@ import (
 	"context"
 	"ddos/config"
 	"ddos/internal/ddos/domain/enum"
-	"ddos/internal/ddos/domain/model"
-	closevoter "ddos/internal/ddos/domain/service/balancer/request/voter/close"
-	spawnvoter "ddos/internal/ddos/domain/service/balancer/request/voter/spawn"
+	"ddos/internal/ddos/domain/service/balancer"
+	closevoter "ddos/internal/ddos/domain/service/balancer/req/voter/close"
+	spawnvoter "ddos/internal/ddos/domain/service/balancer/req/voter/spawn"
+	"ddos/internal/ddos/domain/service/balancer/vote"
 	votestrategy "ddos/internal/ddos/domain/service/balancer/vote/strategy"
 	statservice "ddos/internal/stat/domain/service"
 	"errors"
@@ -21,10 +22,10 @@ type Balancer struct {
 	ctx                  context.Context
 	cfg                  *config.Config
 	collector            *statservice.Collector
-	voteStrategyForSpawn votestrategy.VoteStrategy
-	voteStrategyForClose votestrategy.VoteStrategy
-	votersForSpawn       []model.Voter
-	votersForClose       []model.Voter
+	voteStrategyForSpawn vote.Strategy
+	voteStrategyForClose vote.Strategy
+	votersForSpawn       []balancer.Voter
+	votersForClose       []balancer.Voter
 }
 
 func NewBalancer(
@@ -85,7 +86,7 @@ func (s *Balancer) initVoteStrategyForClose() error {
 }
 
 func (s *Balancer) initVotersForSpawn() {
-	s.votersForSpawn = []model.Voter{
+	s.votersForSpawn = []balancer.Voter{
 		spawnvoter.ByRPS(s.cfg, s.collector),
 		spawnvoter.ByInterval(s.cfg, s.collector),
 		spawnvoter.ByMinWorkers(s.cfg, s.collector),
@@ -94,7 +95,7 @@ func (s *Balancer) initVotersForSpawn() {
 }
 
 func (s *Balancer) initVotersForClose() {
-	s.votersForSpawn = []model.Voter{
+	s.votersForSpawn = []balancer.Voter{
 		closevoter.ByRPS(s.cfg, s.collector),
 		closevoter.ByMaxWorkers(s.cfg, s.collector),
 		closevoter.ByAvgDuration(s.cfg, s.collector),
