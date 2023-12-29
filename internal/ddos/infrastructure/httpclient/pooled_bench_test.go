@@ -2,7 +2,11 @@ package httpclient
 
 import (
 	"context"
-	"ddos/config"
+	reqmiddleware "ddos/internal/ddos/domain/service/sender/middleware/req"
+	"ddos/internal/ddos/domain/service/sender/middleware/resp"
+	"ddos/internal/ddos/infrastructure/httpclient/config"
+	logservice "ddos/internal/log/domain/service"
+	statservice "ddos/internal/stat/domain/service"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,29 +24,28 @@ func BenchmarkPooled_Do(b *testing.B) {
 	}))
 	defer server.Close()
 
-	cfg := &config.Config{
-		URL:                   server.URL,
-		HttpClientPoolMinSize: 32,
-		HttpClientPoolMaxSize: 1024,
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	client, cancelPool := NewPool(
-		ctx,
-		cfg.HttpClientPoolMinSize,
-		cfg.HttpClientPoolMaxSize,
-		func() *http.Client {
-			return &http.Client{Timeout: time.Minute}
-		},
-	)
+	collector := statservice.NewCollector(time.Minute*5, 1)
+
+	logger, loggerClose := logservice.NewLogger(ctx, 100000)
+	defer loggerClose()
+	mw := respmiddleware.NewMetricsMiddleware(logger, collector)
+
+	cfg := &httpclientconfig.Config{
+		PoolInitSize: 10,
+		PoolMaxSize:  1024,
+	}
+
+	client, cancelPool := NewPool(ctx, cfg, func() *http.Client {
+		return &http.Client{Timeout: time.Minute}
+	})
 	defer cancelPool()
 
-	req, err := http.NewRequest("GET", cfg.URL, nil)
-	if err != nil {
-		b.Fatal(err)
-	}
+	client.
+		OnReq(reqmiddleware.AddTimestamp).
+		OnResp(mw.CollectMetrics)
 
 	b.ResetTimer()
 	b.StartTimer()
@@ -50,6 +53,11 @@ func BenchmarkPooled_Do(b *testing.B) {
 	b.N = 100000
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
+			req, err := http.NewRequest("GET", server.URL, nil)
+			if err != nil {
+				b.Fatal(err)
+			}
+
 			resp, err := client.Do(req)
 			if err != nil {
 				return
@@ -67,4 +75,14 @@ func BenchmarkPooled_Do(b *testing.B) {
 		}
 	})
 	b.StopTimer()
+
+	b.Logf(
+		"\n"+
+			"total: %d, total duration: %d, avg duration ms: %v\n"+
+			"success: %d, success duration: %d, avg success ms: %v\n"+
+			"failed: %d, failed success: %d, avg failed ms: %v",
+		collector.Total(), collector.TotalDuration(), collector.AvgTotalDuration().String(),
+		collector.Success(), collector.SuccessDuration(), collector.AvgSuccessDuration().String(),
+		collector.Failed(), collector.FailedDuration(), collector.AvgFailedDuration().String(),
+	)
 }
