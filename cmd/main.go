@@ -3,7 +3,12 @@ package main
 import (
 	"context"
 	"ddos/config"
-	"ddos/internal/ddos/app"
+	ddosservice "ddos/internal/ddos/domain/service"
+	reqsender "ddos/internal/ddos/domain/service/balancer/req"
+	"ddos/internal/ddos/domain/service/manager/req"
+	"ddos/internal/ddos/domain/service/sender"
+	"ddos/internal/ddos/infrastructure/httpclient"
+	httpclientconfig "ddos/internal/ddos/infrastructure/httpclient/config"
 	display "ddos/internal/display/app"
 	displayservice "ddos/internal/display/domain/service"
 	logservice "ddos/internal/log/domain/service"
@@ -11,6 +16,7 @@ import (
 	statservice "ddos/internal/stat/domain/service"
 	"github.com/alexflint/go-arg"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -22,6 +28,11 @@ func main() {
 	cfg := &config.Config{}
 	arg.MustParse(cfg)
 
+	httpClientPoolCfg := &httpclientconfig.Config{
+		PoolInitSize: cfg.PoolInitSize,
+		PoolMaxSize:  cfg.PoolMaxSize,
+	}
+
 	if cfg.LogFile != "" {
 		logfile, err := os.Create(cfg.LogFile)
 		if err != nil {
@@ -31,32 +42,42 @@ func main() {
 		log.SetOutput(logfile)
 	}
 
-	logsCh := make(chan string, int64(cfg.MaxRPS)*cfg.MaxWorkers)
 	exitCh := make(chan os.Signal, 1)
-	defer func() { close(exitCh); close(logsCh) }()
+	defer close(exitCh)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 
-	dur, err := time.ParseDuration(cfg.Duration)
+	duration, err := time.ParseDuration(cfg.Duration)
 	if err != nil {
 		panic(err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+
+	creator := func() *http.Client { return &http.Client{Timeout: time.Minute} }
+	pool, poolCls := httpclient.NewPool(ctx, httpClientPoolCfg, creator)
+	defer poolCls()
+
+	lg, loggerCls := logservice.NewLogger(ctx, cfg.MaxRPS*int(cfg.MaxWorkers))
+	defer loggerCls()
+
 	wg := &sync.WaitGroup{}
-	ctx, cancel := context.WithTimeout(context.Background(), dur)
 	defer wg.Wait()
 
-	lg := logservice.NewLogger(ctx, cfg, logsCh)
-	cl := statservice.NewCollector(cfg)
-	rd := displayservice.NewRenderer(ctx, cfg, exitCh)
-	st := stat.New(ctx, cfg, rd, cl)
-	di := display.New(ctx, rd)
-	dd := ddos.New(ctx, cfg, di, lg, cl)
+	cl := statservice.NewCollector(ctx, pool, duration, cfg.Stages)
+	rr := displayservice.NewRenderer(ctx, cfg, exitCh)
+	st := stat.New(ctx, cfg, rr, cl)
+	dy := display.New(ctx, rr)
+	sr := sender.NewSender(cfg, lg, pool, cl)
+	mg := req.NewManager(ctx, sr, cl)
+	bl := reqsender.NewBalancer(ctx, cfg, cl)
+	fl := ddosservice.NewFlooder(ctx, cfg, mg, lg, bl, cl)
 
-	wg.Add(4)
+	wg.Add(5)
 	go lg.Run(wg)
+	go cl.Run(wg)
 	go st.Run(wg)
-	go di.Run(wg)
-	go dd.Run(wg)
+	go dy.Run(wg)
+	go fl.Run(wg)
 
 	<-exitCh
 	cancel()
