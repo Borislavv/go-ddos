@@ -14,8 +14,10 @@ type Metrics struct {
 	startedAt int64 // ms
 	duration  int64 // ns
 	// Workers
-	workers    int64 // request sender workers
-	processors int64 // response processors
+	workers             int64 // request sender workers
+	processors          int64 // response processors
+	httpClientPoolBusy  int64 // len of pool
+	httpClientPoolTotal int64 // cap of pool
 	// requests
 	rps     int64
 	total   int64
@@ -67,6 +69,26 @@ func (m *Metrics) SetDuration() {
 func (m *Metrics) Duration() time.Duration {
 	m.SetDuration()
 	return time.Duration(atomic.LoadInt64(&m.duration))
+}
+
+func (m *Metrics) HttpClientPoolBusy() int64 {
+	return atomic.LoadInt64(&m.httpClientPoolBusy)
+}
+
+func (m *Metrics) SetHttpClientPoolBusy(busy int64) {
+	if atomic.LoadInt64(&m.isMutable) == 1 {
+		atomic.CompareAndSwapInt64(&m.httpClientPoolBusy, atomic.LoadInt64(&m.httpClientPoolBusy), busy)
+	}
+}
+
+func (m *Metrics) HttpClientPoolTotal() int64 {
+	return atomic.LoadInt64(&m.httpClientPoolTotal)
+}
+
+func (m *Metrics) SetHttpClientPoolTotal(total int64) {
+	if atomic.LoadInt64(&m.isMutable) == 1 {
+		atomic.CompareAndSwapInt64(&m.httpClientPoolTotal, atomic.LoadInt64(&m.httpClientPoolTotal), total)
+	}
 }
 
 func (m *Metrics) Workers() int64 {
