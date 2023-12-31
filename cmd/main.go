@@ -49,9 +49,9 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 
-	creator := func() *http.Client { return &http.Client{Timeout: time.Minute} }
-	pool := httpclient.NewPool(ctx, poolCfg, creator)
-	defer func() { _ = pool.Close() }()
+	cr := func() *http.Client { return &http.Client{Timeout: time.Minute} }
+	pl := httpclient.NewPool(ctx, poolCfg, cr)
+	defer func() { _ = pl.Close() }()
 
 	lg := logservice.NewAsync(ctx, cfg)
 	defer func() { _ = lg.Close() }()
@@ -59,11 +59,11 @@ func main() {
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 
-	cl := statservice.NewCollector(ctx, pool, duration, cfg.Stages)
+	cl := statservice.NewCollector(ctx, pl, duration, cfg.Stages)
 	rr := displayservice.NewRenderer(ctx, cfg, lg, exitCh)
 	st := stat.New(ctx, cfg, lg, rr, cl)
 	dy := display.New(ctx, rr)
-	sr := sender.NewSender(cfg, lg, pool, cl)
+	sr := sender.NewSender(cfg, lg, pl, cl)
 	mg := req.NewManager(ctx, sr, cl)
 	bl := reqsender.NewBalancer(ctx, cfg, cl)
 	fl := ddosservice.NewFlooder(ctx, cfg, mg, lg, bl, cl)
