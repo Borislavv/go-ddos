@@ -1,57 +1,86 @@
 package statservice
 
 import (
-	"ddos/config"
+	"context"
+	"ddos/internal/ddos/infrastructure/httpclient"
 	"ddos/internal/stat/domain/model"
-	"log"
 	"math"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 type Collector struct {
+	ctx                context.Context
 	mu                 *sync.RWMutex
-	cfg                *config.Config
+	httpClient         httpclient.Pooled
 	durPerPercentile   time.Duration
 	percentilesMetrics map[int64]*model.Metrics
-
-	// time
-	startedAt time.Time
-	// workers
-	workers int64
-	// requests
-	rps     int64
-	total   int64
-	success int64
-	failed  int64
-	// duration (ms)
-	totalDuration   int64
-	successDuration int64
-	failedDuration  int64
+	stages             int64
 }
 
-func NewCollector(cfg *config.Config) *Collector {
-	dur, err := time.ParseDuration(cfg.Duration)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
+func NewCollector(ctx context.Context, httpClient httpclient.Pooled, duration time.Duration, stages int64) *Collector {
 	c := &Collector{
+		ctx:              ctx,
+		httpClient:       httpClient,
 		mu:               &sync.RWMutex{},
-		cfg:              cfg,
-		durPerPercentile: time.Duration(math.Ceil(float64(dur.Nanoseconds() / cfg.Stages))),
+		durPerPercentile: time.Duration(math.Ceil(float64(duration.Nanoseconds() / stages))),
 	}
 
-	if cfg.Stages <= 0 {
-		atomic.CompareAndSwapInt64(&cfg.Stages, cfg.Stages, 1)
+	if stages <= 0 {
+		c.stages = 1
+	} else {
+		c.stages = stages
 	}
 
-	c.mu.Lock()
-	c.percentilesMetrics = make(map[int64]*model.Metrics, cfg.Stages)
-	c.mu.Unlock()
+	c.percentilesMetrics = make(map[int64]*model.Metrics, c.stages)
 
 	return c
+}
+
+func (c *Collector) Run(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	refreshTicker := time.NewTicker(time.Millisecond * 100)
+	defer refreshTicker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-refreshTicker.C:
+			c.SetRPS()
+			c.SetHttpClientPoolBusy()
+			c.SetHttpClientPoolTotal()
+		}
+	}
+}
+
+func (c *Collector) HttpClientPoolBusy() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.currentMetric().HttpClientPoolBusy()
+}
+
+func (c *Collector) SetHttpClientPoolBusy() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.currentMetric().SetHttpClientPoolBusy(c.httpClient.Busy())
+}
+
+func (c *Collector) HttpClientPoolTotal() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.currentMetric().HttpClientPoolTotal()
+}
+
+func (c *Collector) SetHttpClientPoolTotal() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.currentMetric().SetHttpClientPoolTotal(c.httpClient.Total())
 }
 
 func (c *Collector) CurrentPercentile() int64 {
@@ -94,9 +123,9 @@ func (c *Collector) firstMetric() *model.Metrics {
 	return metric
 }
 
-// Percentiles number. This value is not mutable.
-func (c *Collector) Percentiles() int64 {
-	return c.cfg.Stages
+// Stages number. This value is not mutable.
+func (c *Collector) Stages() int64 {
+	return c.stages
 }
 
 func (c *Collector) Metric(percentile int64) (metric *model.Metrics, found bool) {
@@ -138,6 +167,13 @@ func (c *Collector) AddWorker() {
 	defer c.mu.Unlock()
 
 	c.currentMetric().AddWorkers(1)
+}
+
+func (c *Collector) RemoveWorker() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.currentMetric().AddWorkers(-1)
 }
 
 func (c *Collector) Workers() int64 {
@@ -253,6 +289,13 @@ func (c *Collector) AddTotalDuration(d time.Duration) {
 	defer c.mu.Unlock()
 
 	c.currentMetric().AddTotalDuration(d)
+}
+
+func (c *Collector) TotalDuration() time.Duration {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return time.Duration(c.currentMetric().TotalDuration())
 }
 
 // AvgTotalDuration of current percentile.
