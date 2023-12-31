@@ -13,7 +13,6 @@ import (
 )
 
 type Stat struct {
-	mu        *sync.RWMutex
 	ctx       context.Context
 	cfg       *config.Config
 	renderer  *displayservice.Renderer
@@ -27,7 +26,6 @@ func New(
 	collector *statservice.Collector,
 ) *Stat {
 	return &Stat{
-		mu:        &sync.RWMutex{},
 		ctx:       ctx,
 		cfg:       cfg,
 		renderer:  renderer,
