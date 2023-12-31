@@ -2,22 +2,27 @@ package reqmiddleware
 
 import (
 	"ddos/internal/ddos/infrastructure/httpclient/middleware"
-	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 const Timestamp = "Timestamp"
 
-func AddTimestamp(next httpclientmiddleware.RequestModifier) httpclientmiddleware.RequestModifier {
+type TimestampMiddleware struct {
+}
+
+func NewTimestampMiddleware() *TimestampMiddleware {
+	return &TimestampMiddleware{}
+}
+
+func (m *TimestampMiddleware) AddTimestamp(next httpclientmiddleware.RequestModifier) httpclientmiddleware.RequestModifier {
 	return httpclientmiddleware.RequestModifierFunc(func(req *http.Request) (*http.Response, error) {
-		copyValues := req.URL.Query()
-		if copyValues.Has(Timestamp) {
-			copyValues.Del(Timestamp)
+		if req != nil {
+			copyValues := req.URL.Query()
+			copyValues.Set(Timestamp, strconv.FormatInt(time.Now().UnixMilli(), 10))
+			req.URL.RawQuery = copyValues.Encode()
 		}
-		//copyValues.Add(Timestamp, strconv.FormatInt(time.Now().UnixMilli(), 10))
-		copyValues.Add(Timestamp, fmt.Sprintf("%d", time.Now().UnixMilli()))
-		req.URL.RawQuery = copyValues.Encode()
 		return next.Do(req)
 	})
 }
