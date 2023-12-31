@@ -58,11 +58,11 @@ func (c *Collector) Run(wg *sync.WaitGroup) {
 }
 
 func (c *Collector) firstMetric() *model.Metrics {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	metric, ok := c.percentilesMetrics[1]
+	metric, ok := c.Metric(1)
 	if !ok {
 		metric = model.NewMetric()
+		c.mu.Lock()
+		defer c.mu.Unlock()
 		c.percentilesMetrics[1] = metric
 	}
 	return metric
@@ -73,18 +73,15 @@ func (c *Collector) currentMetric() *model.Metrics {
 		math.Round(float64(time.Since(c.startedAt).Milliseconds()/c.durPerPercentile.Milliseconds())),
 	) + 1
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	metric, ok := c.percentilesMetrics[current]
+	metric, ok := c.Metric(current)
 	if !ok {
 		metric = model.NewMetric()
-
-		if prevMetric, isset := c.percentilesMetrics[current-1]; isset {
+		if prevMetric, isset := c.Metric(current - 1); isset {
 			prevMetric.Lock()
 			metric = prevMetric.Clone()
 		}
-
+		c.mu.Lock()
+		defer c.mu.Unlock()
 		c.percentilesMetrics[current] = metric
 	}
 	return metric
@@ -103,7 +100,7 @@ func (c *Collector) Metric(stage int64) (metric *model.Metrics, found bool) {
 }
 
 func (c *Collector) SummaryDuration() time.Duration {
-	return time.Since(c.firstMetric().StartedAt())
+	return time.Since(c.startedAt)
 }
 
 func (c *Collector) SetRPS() {
