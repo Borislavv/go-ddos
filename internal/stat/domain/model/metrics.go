@@ -71,6 +71,26 @@ func (m *Metrics) Duration() time.Duration {
 	return time.Duration(atomic.LoadInt64(&m.duration))
 }
 
+func (m *Metrics) HttpClientPoolBusy() int64 {
+	return atomic.LoadInt64(&m.httpClientPoolBusy)
+}
+
+func (m *Metrics) SetHttpClientPoolBusy(busy int64) {
+	if atomic.LoadInt64(&m.isMutable) == 1 {
+		atomic.CompareAndSwapInt64(&m.httpClientPoolBusy, atomic.LoadInt64(&m.httpClientPoolBusy), busy)
+	}
+}
+
+func (m *Metrics) HttpClientPoolTotal() int64 {
+	return atomic.LoadInt64(&m.httpClientPoolTotal)
+}
+
+func (m *Metrics) SetHttpClientPoolTotal(total int64) {
+	if atomic.LoadInt64(&m.isMutable) == 1 {
+		atomic.CompareAndSwapInt64(&m.httpClientPoolTotal, atomic.LoadInt64(&m.httpClientPoolTotal), total)
+	}
+}
+
 func (m *Metrics) Workers() int64 {
 	return atomic.LoadInt64(&m.workers)
 }
