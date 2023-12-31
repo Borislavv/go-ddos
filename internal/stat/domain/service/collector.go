@@ -1,6 +1,8 @@
 package statservice
 
 import (
+	"context"
+	"ddos/internal/ddos/infrastructure/httpclient"
 	"ddos/internal/stat/domain/model"
 	"math"
 	"sync"
@@ -8,25 +10,77 @@ import (
 )
 
 type Collector struct {
+	ctx                context.Context
 	mu                 *sync.RWMutex
+	httpClient         httpclient.Pooled
 	durPerPercentile   time.Duration
 	percentilesMetrics map[int64]*model.Metrics
 	stages             int64
 }
 
-func NewCollector(duration time.Duration, stages int64) *Collector {
+func NewCollector(ctx context.Context, httpClient httpclient.Pooled, duration time.Duration, stages int64) *Collector {
 	c := &Collector{
+		ctx:              ctx,
+		httpClient:       httpClient,
 		mu:               &sync.RWMutex{},
 		durPerPercentile: time.Duration(math.Ceil(float64(duration.Nanoseconds() / stages))),
 	}
 
 	if stages <= 0 {
 		c.stages = 1
+	} else {
+		c.stages = stages
 	}
 
 	c.percentilesMetrics = make(map[int64]*model.Metrics, c.stages)
 
 	return c
+}
+
+func (c *Collector) Run(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	refreshTicker := time.NewTicker(time.Millisecond * 100)
+	defer refreshTicker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-refreshTicker.C:
+			c.SetRPS()
+			c.SetHttpClientPoolBusy()
+			c.SetHttpClientPoolTotal()
+		}
+	}
+}
+
+func (c *Collector) HttpClientPoolBusy() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.currentMetric().HttpClientPoolBusy()
+}
+
+func (c *Collector) SetHttpClientPoolBusy() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.currentMetric().SetHttpClientPoolBusy(c.httpClient.Busy())
+}
+
+func (c *Collector) HttpClientPoolTotal() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.currentMetric().HttpClientPoolTotal()
+}
+
+func (c *Collector) SetHttpClientPoolTotal() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.currentMetric().SetHttpClientPoolTotal(c.httpClient.Total())
 }
 
 func (c *Collector) CurrentPercentile() int64 {
@@ -113,6 +167,13 @@ func (c *Collector) AddWorker() {
 	defer c.mu.Unlock()
 
 	c.currentMetric().AddWorkers(1)
+}
+
+func (c *Collector) RemoveWorker() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.currentMetric().AddWorkers(-1)
 }
 
 func (c *Collector) Workers() int64 {
