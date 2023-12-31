@@ -27,12 +27,6 @@ func BenchmarkPooled_Do(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	collector := statservice.NewCollector(time.Minute*5, 1)
-
-	logger, loggerClose := logservice.NewLogger(ctx, 100000)
-	defer loggerClose()
-	mw := respmiddleware.NewMetricsMiddleware(logger, collector)
-
 	cfg := &httpclientconfig.Config{
 		PoolInitSize: 10,
 		PoolMaxSize:  1024,
@@ -43,8 +37,14 @@ func BenchmarkPooled_Do(b *testing.B) {
 	})
 	defer cancelPool()
 
+	collector := statservice.NewCollector(ctx, client, time.Minute*5, 1)
+
+	logger, loggerClose := logservice.NewLogger(ctx, 100000)
+	defer loggerClose()
+	mw := respmiddleware.NewMetricsMiddleware(logger, collector)
+
 	client.
-		OnReq(reqmiddleware.AddTimestamp).
+		OnReq(reqmiddleware.NewTimestampMiddleware().AddTimestamp).
 		OnResp(mw.CollectMetrics)
 
 	b.ResetTimer()
