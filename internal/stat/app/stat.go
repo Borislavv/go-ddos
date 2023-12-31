@@ -47,7 +47,7 @@ func (s *Stat) Run(mwg *sync.WaitGroup) {
 func (s *Stat) sendStat(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	statTicker := time.NewTicker(time.Millisecond * 100)
+	statTicker := time.NewTicker(time.Millisecond * 75)
 	defer statTicker.Stop()
 
 	header := []string{
