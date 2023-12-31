@@ -32,25 +32,31 @@ func NewBalancer(
 	ctx context.Context,
 	cfg *config.Config,
 	collector *statservice.Collector,
-) (*Balancer, error) {
+) *Balancer {
 	s := &Balancer{
 		ctx:       ctx,
 		cfg:       cfg,
 		collector: collector,
 	}
 
-	if err := s.initVoteStrategyForSpawn(); err != nil {
-		return nil, err
-	}
-
-	if err := s.initVoteStrategyForClose(); err != nil {
-		return nil, err
-	}
-
 	s.initVotersForSpawn()
 	s.initVotersForClose()
 
-	return s, nil
+	if len(s.votersForSpawn) == 0 {
+		panic("len of voters for spawn equals zero, unable spawn any worker")
+	} else if len(s.votersForClose) == 0 {
+		panic("len of voters for close equals zero, unable close any worker")
+	}
+
+	if err := s.initVoteStrategyForSpawn(); err != nil {
+		panic(err)
+	}
+
+	if err := s.initVoteStrategyForClose(); err != nil {
+		panic(err)
+	}
+
+	return s
 }
 
 func (s *Balancer) initVoteStrategyForSpawn() error {
@@ -72,13 +78,13 @@ func (s *Balancer) initVoteStrategyForSpawn() error {
 func (s *Balancer) initVoteStrategyForClose() error {
 	switch enum.VoteStrategy(s.cfg.VoteForCloseReqSenderStrategy) {
 	case enum.AllVotersStrategy:
-		s.voteStrategyForClose = votestrategy.NewAllVoters(s.votersForSpawn, s.cfg, s.collector)
+		s.voteStrategyForClose = votestrategy.NewAllVoters(s.votersForClose, s.cfg, s.collector)
 		return nil
 	case enum.ManyVotersStrategy:
-		s.voteStrategyForClose = votestrategy.NewManyVoters(s.votersForSpawn, s.cfg, s.collector)
+		s.voteStrategyForClose = votestrategy.NewManyVoters(s.votersForClose, s.cfg, s.collector)
 		return nil
 	case enum.AtLeastOneVoterStrategy:
-		s.voteStrategyForClose = votestrategy.NewAtLeastOneVoter(s.votersForSpawn, s.cfg, s.collector)
+		s.voteStrategyForClose = votestrategy.NewAtLeastOneVoter(s.votersForClose, s.cfg, s.collector)
 		return nil
 	default:
 		return CloseVoteStrategyWasNotFoundError
@@ -87,18 +93,18 @@ func (s *Balancer) initVoteStrategyForClose() error {
 
 func (s *Balancer) initVotersForSpawn() {
 	s.votersForSpawn = []balancer.Voter{
-		spawnvoter.ByRPS(s.cfg, s.collector),
-		spawnvoter.ByInterval(s.cfg, s.collector),
-		spawnvoter.ByMinWorkers(s.cfg, s.collector),
-		spawnvoter.ByAvgDuration(s.cfg, s.collector),
+		//spawnvoter.ByRPS(s.cfg, s.collector),
+		//spawnvoter.ByInterval(s.cfg, s.collector),
+		spawnvoter.ByMinWorkers(),
+		//spawnvoter.ByAvgDuration(s.cfg, s.collector),
 	}
 }
 
 func (s *Balancer) initVotersForClose() {
-	s.votersForSpawn = []balancer.Voter{
-		closevoter.ByRPS(s.cfg, s.collector),
-		closevoter.ByMaxWorkers(s.cfg, s.collector),
-		closevoter.ByAvgDuration(s.cfg, s.collector),
+	s.votersForClose = []balancer.Voter{
+		//closevoter.ByRPS(s.cfg, s.collector),
+		closevoter.ByMaxWorkers(),
+		//closevoter.ByAvgDuration(s.cfg, s.collector),
 	}
 }
 
