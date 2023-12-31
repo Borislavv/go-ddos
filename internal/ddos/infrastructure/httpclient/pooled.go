@@ -5,6 +5,7 @@ import (
 	config "ddos/internal/ddos/infrastructure/httpclient/config"
 	middleware "ddos/internal/ddos/infrastructure/httpclient/middleware"
 	"net/http"
+	"sync/atomic"
 )
 
 type CancelFunc func()
@@ -16,6 +17,7 @@ type Pool struct {
 	cancel  context.CancelFunc
 	req     middleware.RequestModifier
 	resp    middleware.ResponseHandler
+	conns   int64
 }
 
 func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Client) (*Pool, CancelFunc) {
@@ -35,6 +37,8 @@ func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Clien
 	for i := 0; i < cfg.PoolInitSize; i++ {
 		p.pool <- creator()
 	}
+
+	p.conns = int64(cfg.PoolInitSize)
 
 	p.req = middleware.RequestModifierFunc(
 		func(req *http.Request) (*http.Response, error) {
@@ -71,8 +75,12 @@ func (p *Pool) OnResp(middlewares ...middleware.ResponseMiddlewareFunc) Pooled {
 	return p
 }
 
-func (p *Pool) Len() int {
-	return len(p.pool)
+func (p *Pool) Busy() int64 {
+	return p.Total() - int64(len(p.pool))
+}
+
+func (p *Pool) Total() int64 {
+	return atomic.LoadInt64(&p.conns)
 }
 
 func (p *Pool) get() *http.Client {
@@ -80,6 +88,7 @@ func (p *Pool) get() *http.Client {
 	case c := <-p.pool:
 		return c
 	default:
+		atomic.AddInt64(&p.conns, 1)
 		return p.creator()
 	}
 }
@@ -94,5 +103,4 @@ func (p *Pool) put(c *http.Client) {
 func (p *Pool) cls() {
 	p.cancel()
 	close(p.pool)
-	p.pool = nil
 }
