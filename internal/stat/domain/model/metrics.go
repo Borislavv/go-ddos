@@ -14,8 +14,9 @@ type Metrics struct {
 	startedAt int64 // ms
 	duration  int64 // ns
 	// Workers
-	workers    int64 // request sender workers
-	processors int64 // response processors
+	workers             int64 // request sender workers
+	httpClientPoolBusy  int64 // len of pool
+	httpClientPoolTotal int64 // cap of pool
 	// requests
 	rps     int64
 	total   int64
@@ -33,12 +34,13 @@ func NewMetric() *Metrics {
 
 func (m *Metrics) Clone() *Metrics {
 	return &Metrics{
-		mu:         m.mu,
-		isMutable:  1,
-		startedAt:  time.Now().UnixMilli(),
-		workers:    m.Workers(),
-		processors: m.Processors(),
-		rps:        m.RPS(),
+		mu:                  m.mu,
+		isMutable:           1,
+		startedAt:           time.Now().UnixMilli(),
+		workers:             m.Workers(),
+		rps:                 m.RPS(),
+		httpClientPoolBusy:  m.HttpClientPoolBusy(),
+		httpClientPoolTotal: m.HttpClientPoolTotal(),
 	}
 }
 
@@ -76,16 +78,6 @@ func (m *Metrics) Workers() int64 {
 func (m *Metrics) AddWorkers(n int64) {
 	if atomic.LoadInt64(&m.isMutable) == 1 {
 		atomic.AddInt64(&m.workers, n)
-	}
-}
-
-func (m *Metrics) Processors() int64 {
-	return atomic.LoadInt64(&m.processors)
-}
-
-func (m *Metrics) AddProcessors(n int64) {
-	if atomic.LoadInt64(&m.isMutable) == 1 {
-		atomic.AddInt64(&m.processors, n)
 	}
 }
 
