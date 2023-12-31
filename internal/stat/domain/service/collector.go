@@ -12,6 +12,7 @@ import (
 type Collector struct {
 	ctx                context.Context
 	mu                 *sync.RWMutex
+	startedAt          time.Time
 	httpClient         httpclient.Pooled
 	durPerPercentile   time.Duration
 	percentilesMetrics map[int64]*model.Metrics
@@ -21,6 +22,7 @@ type Collector struct {
 func NewCollector(ctx context.Context, httpClient httpclient.Pooled, duration time.Duration, stages int64) *Collector {
 	c := &Collector{
 		ctx:              ctx,
+		startedAt:        time.Now(),
 		httpClient:       httpClient,
 		mu:               &sync.RWMutex{},
 		durPerPercentile: time.Duration(math.Ceil(float64(duration.Nanoseconds() / stages))),
@@ -55,70 +57,35 @@ func (c *Collector) Run(wg *sync.WaitGroup) {
 	}
 }
 
-func (c *Collector) HttpClientPoolBusy() int64 {
+func (c *Collector) firstMetric() *model.Metrics {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	return c.currentMetric().HttpClientPoolBusy()
-}
-
-func (c *Collector) SetHttpClientPoolBusy() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.currentMetric().SetHttpClientPoolBusy(c.httpClient.Busy())
-}
-
-func (c *Collector) HttpClientPoolTotal() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	return c.currentMetric().HttpClientPoolTotal()
-}
-
-func (c *Collector) SetHttpClientPoolTotal() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.currentMetric().SetHttpClientPoolTotal(c.httpClient.Total())
-}
-
-func (c *Collector) CurrentPercentile() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.currentPercentile()
-}
-
-func (c *Collector) currentPercentile() int64 {
-	return int64(
-		math.Round(float64(time.Since(c.firstMetric().StartedAt()).Milliseconds()/c.durPerPercentile.Milliseconds())),
-	) + 1
-}
-
-func (c *Collector) firstPercentile() int64 {
-	return 1
-}
-
-func (c *Collector) currentMetric() *model.Metrics {
-	metric, ok := c.percentilesMetrics[c.currentPercentile()]
+	metric, ok := c.percentilesMetrics[1]
 	if !ok {
 		metric = model.NewMetric()
-
-		if prevMetric, isset := c.percentilesMetrics[c.currentPercentile()-1]; isset {
-			prevMetric.Lock()
-			metric = prevMetric.Clone()
-		}
-
-		c.percentilesMetrics[c.currentPercentile()] = metric
+		c.percentilesMetrics[1] = metric
 	}
 	return metric
 }
 
-func (c *Collector) firstMetric() *model.Metrics {
-	metric, ok := c.percentilesMetrics[c.firstPercentile()]
+func (c *Collector) currentMetric() *model.Metrics {
+	current := int64(
+		math.Round(float64(time.Since(c.startedAt).Milliseconds()/c.durPerPercentile.Milliseconds())),
+	) + 1
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	metric, ok := c.percentilesMetrics[current]
 	if !ok {
 		metric = model.NewMetric()
-		c.percentilesMetrics[c.firstPercentile()] = metric
+
+		if prevMetric, isset := c.percentilesMetrics[current-1]; isset {
+			prevMetric.Lock()
+			metric = prevMetric.Clone()
+		}
+
+		c.percentilesMetrics[current] = metric
 	}
 	return metric
 }
@@ -128,76 +95,52 @@ func (c *Collector) Stages() int64 {
 	return c.stages
 }
 
-func (c *Collector) Metric(percentile int64) (metric *model.Metrics, found bool) {
+func (c *Collector) Metric(stage int64) (metric *model.Metrics, found bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	metric, found = c.percentilesMetrics[percentile]
+	metric, found = c.percentilesMetrics[stage]
 	return metric, found
 }
 
 func (c *Collector) SummaryDuration() time.Duration {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return time.Since(c.firstMetric().StartedAt())
 }
 
 func (c *Collector) SetRPS() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.currentMetric().SetRPS()
 }
 
 func (c *Collector) RPS() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().RPS()
 }
 
 func (c *Collector) SummaryRPS() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	return int64(float64(c.summaryTotal()) / time.Since(c.firstMetric().StartedAt()).Seconds())
+	return int64(float64(c.summaryTotal()) / time.Since(c.startedAt).Seconds())
 }
 
 func (c *Collector) AddWorker() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.currentMetric().AddWorkers(1)
 }
 
 func (c *Collector) RemoveWorker() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.currentMetric().AddWorkers(-1)
 }
 
 func (c *Collector) Workers() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().Workers()
 }
 
 func (c *Collector) AddTotal() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.currentMetric().AddTotal()
 }
 
 func (c *Collector) Total() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().Total()
 }
 
 func (c *Collector) summaryTotal() int64 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	var t int64
 	for _, metric := range c.percentilesMetrics {
 		t += metric.Total()
@@ -206,23 +149,14 @@ func (c *Collector) summaryTotal() int64 {
 }
 
 func (c *Collector) SummaryTotal() int64 {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	return c.summaryTotal()
 }
 
 func (c *Collector) AddSuccess() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.currentMetric().AddSuccess()
 }
 
 func (c *Collector) Success() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().Success()
 }
 
@@ -238,16 +172,10 @@ func (c *Collector) SummarySuccess() int64 {
 }
 
 func (c *Collector) AddFailed() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.currentMetric().AddFailed()
 }
 
 func (c *Collector) Failed() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().Failed()
 }
 
@@ -264,24 +192,15 @@ func (c *Collector) SummaryFailed() int64 {
 
 // AddTotalDuration for current percentile.
 func (c *Collector) AddTotalDuration(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.currentMetric().AddTotalDuration(d)
 }
 
 func (c *Collector) TotalDuration() time.Duration {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return time.Duration(c.currentMetric().TotalDuration())
 }
 
 // AvgTotalDuration of current percentile.
 func (c *Collector) AvgTotalDuration() time.Duration {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().AvgTotalDuration()
 }
 
@@ -306,26 +225,16 @@ func (c *Collector) SummaryAvgTotalDuration() time.Duration {
 
 // AddSuccessDuration for current percentile.
 func (c *Collector) AddSuccessDuration(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.currentMetric().AddSuccessDuration(d)
-
 }
 
 // SuccessDuration of current percentile.
 func (c *Collector) SuccessDuration() (ms int64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().SuccessDuration()
 }
 
 // AvgSuccessDuration of current percentile.
 func (c *Collector) AvgSuccessDuration() time.Duration {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().AvgSuccessDuration()
 }
 
@@ -350,25 +259,16 @@ func (c *Collector) SummaryAvgSuccessDuration() time.Duration {
 
 // AddFailedDuration for current percentile.
 func (c *Collector) AddFailedDuration(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.currentMetric().AddFailedDuration(d)
 }
 
 // FailedDuration of current percentile.
 func (c *Collector) FailedDuration() (ms int64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().FailedDuration()
 }
 
 // AvgFailedDuration of current percentile.
 func (c *Collector) AvgFailedDuration() time.Duration {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	return c.currentMetric().AvgFailedDuration()
 }
 
@@ -389,4 +289,20 @@ func (c *Collector) SummaryAvgFailedDuration() time.Duration {
 	} else {
 		return time.Duration(failedDuration/failed) * time.Millisecond
 	}
+}
+
+func (c *Collector) HttpClientPoolBusy() int64 {
+	return c.currentMetric().HttpClientPoolBusy()
+}
+
+func (c *Collector) SetHttpClientPoolBusy() {
+	c.currentMetric().SetHttpClientPoolBusy(c.httpClient.Busy())
+}
+
+func (c *Collector) HttpClientPoolTotal() int64 {
+	return c.currentMetric().HttpClientPoolTotal()
+}
+
+func (c *Collector) SetHttpClientPoolTotal() {
+	c.currentMetric().SetHttpClientPoolTotal(c.httpClient.Total())
 }
