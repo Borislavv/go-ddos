@@ -1,76 +1,53 @@
 package sender
 
 import (
-	"ddos/internal/ddos/domain/service/processor/resp"
+	"ddos/config"
 	"ddos/internal/ddos/domain/service/sender/middleware/req"
+	respmiddleware "ddos/internal/ddos/domain/service/sender/middleware/resp"
 	"ddos/internal/ddos/infrastructure/httpclient"
-	"ddos/internal/ddos/infrastructure/httpclient/middleware"
 	logservice "ddos/internal/log/domain/service"
 	statservice "ddos/internal/stat/domain/service"
-	"fmt"
 	"net/http"
-	"time"
 )
 
 type Sender struct {
-	processor       *resp.Processor
-	logger          *logservice.Logger
-	httpClient      *httpclient.Pool
-	collector       *statservice.Collector
-	reqMiddlewares  []httpclientmiddleware.RequestModifier
-	respMiddlewares []httpclientmiddleware.ResponseHandler
+	cfg        *config.Config
+	logger     *logservice.Logger
+	httpClient *httpclient.Pool
+	collector  *statservice.Collector
 }
 
 func NewSender(
-	processor *resp.Processor,
+	cfg *config.Config,
 	logger *logservice.Logger,
 	httpClient *httpclient.Pool,
 	collector *statservice.Collector,
-	reqMiddlewares []httpclientmiddleware.RequestModifier,
-	respMiddlewares []httpclientmiddleware.ResponseHandler,
 ) *Sender {
-	return &Sender{
-		processor:       processor,
-		logger:          logger,
-		httpClient:      httpClient,
-		collector:       collector,
-		reqMiddlewares:  reqMiddlewares,
-		respMiddlewares: respMiddlewares,
+	s := &Sender{
+		cfg:        cfg,
+		logger:     logger,
+		httpClient: httpClient,
+		collector:  collector,
 	}
+	s.addMiddlewares()
+	return s
 }
 
 func (s *Sender) Send(req *http.Request) {
-	st := time.Now()
-	defer func() {
-		s.collector.AddTotal()
-		s.collector.AddTotalDuration(time.Since(st))
-	}()
-
-	response, err := s.httpClient.Do(req)
-	if err != nil {
-		s.logger.Println(err.Error())
-		s.collector.AddFailed()
-		s.collector.AddFailedDuration(time.Since(st))
-		return
-	} else if response.StatusCode != http.StatusOK {
-		defer func() { _ = response.Body.Close() }()
-		s.logger.Println(fmt.Sprintf("Status code: %d", response.StatusCode))
-		s.collector.AddFailed()
-		s.collector.AddFailedDuration(time.Since(st))
-		return
-	} else {
-		defer func() { _ = response.Body.Close() }()
-		s.collector.AddSuccess()
-		s.collector.AddSuccessDuration(time.Since(st))
-		return
-	}
+	_, _ = s.httpClient.Do(req)
 }
 
 func (s *Sender) addMiddlewares() {
 	s.httpClient.
 		OnReq(
-			reqmiddleware.RandUrl,
-			reqmiddleware.AddTimestamp,
+			reqmiddleware.NewInitRequestMiddleware(s.logger).InitRequest,
+			reqmiddleware.NewRandUrlMiddleware([]string{s.cfg.URL}, s.logger).AddRandUrl,
+			reqmiddleware.NewTimestampMiddleware().AddTimestamp,
 		).
-		OnResp()
+		OnResp(
+			respmiddleware.NewErrorMiddleware(s.logger).HandleError,
+			respmiddleware.NewStatusCodeMiddleware(s.logger).HandleStatusCode,
+			respmiddleware.NewMetricsMiddleware(s.logger, s.collector).CollectMetrics,
+			respmiddleware.NewCloseBodyMiddleware(s.logger).CloseResponseBody,
+		)
 }
