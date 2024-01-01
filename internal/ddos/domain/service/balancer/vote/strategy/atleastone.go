@@ -9,13 +9,13 @@ import (
 type AtLeastOneVoter struct {
 	voters    []balancer.Voter
 	cfg       *config.Config
-	collector *statservice.Collector
+	collector statservice.Collector
 }
 
 func NewAtLeastOneVoter(
 	voters []balancer.Voter,
 	cfg *config.Config,
-	collector *statservice.Collector,
+	collector statservice.Collector,
 ) *AtLeastOneVoter {
 	return &AtLeastOneVoter{
 		voters:    voters,
