@@ -19,7 +19,7 @@ type Flooder struct {
 	cfg         *ddos.Config
 	manager     *req.Manager
 	logger      *logservice.Logger
-	collector   *statservice.Collector
+	collector   statservice.Collector
 	reqBalancer *reqsender.Balancer
 }
 
@@ -29,7 +29,7 @@ func NewFlooder(
 	manager *req.Manager,
 	logger *logservice.Logger,
 	reqBalancer *reqsender.Balancer,
-	collector *statservice.Collector,
+	collector statservice.Collector,
 ) *Flooder {
 	return &Flooder{
 		mu:          &sync.RWMutex{},
