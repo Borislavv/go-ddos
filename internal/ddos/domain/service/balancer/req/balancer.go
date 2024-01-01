@@ -21,7 +21,7 @@ var (
 type Balancer struct {
 	ctx                  context.Context
 	cfg                  *config.Config
-	collector            *statservice.Collector
+	collector            statservice.Collector
 	voteStrategyForSpawn vote.Strategy
 	voteStrategyForClose vote.Strategy
 	votersForSpawn       []balancer.Voter
@@ -31,7 +31,7 @@ type Balancer struct {
 func NewBalancer(
 	ctx context.Context,
 	cfg *config.Config,
-	collector *statservice.Collector,
+	collector statservice.Collector,
 ) *Balancer {
 	s := &Balancer{
 		ctx:       ctx,
