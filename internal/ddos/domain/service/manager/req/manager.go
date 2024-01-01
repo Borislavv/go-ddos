@@ -10,9 +10,11 @@ import (
 )
 
 type Manager struct {
-	ctx        context.Context
-	sender     *sender.Sender
-	collector  *statservice.Collector
+	ctx context.Context
+
+	sender    *sender.Sender
+	collector statservice.Collector
+
 	closeOneCh chan struct{}
 	closeAllCh chan struct{}
 }
@@ -20,7 +22,7 @@ type Manager struct {
 func NewManager(
 	ctx context.Context,
 	sender *sender.Sender,
-	collector *statservice.Collector,
+	collector statservice.Collector,
 ) *Manager {
 	return &Manager{
 		ctx:        ctx,
