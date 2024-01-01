@@ -9,13 +9,13 @@ import (
 type AllVoters struct {
 	voters    []balancer.Voter
 	cfg       *config.Config
-	collector *statservice.Collector
+	collector statservice.Collector
 }
 
 func NewAllVoters(
 	voters []balancer.Voter,
 	cfg *config.Config,
-	collector *statservice.Collector,
+	collector statservice.Collector,
 ) *AllVoters {
 	return &AllVoters{
 		voters:    voters,
