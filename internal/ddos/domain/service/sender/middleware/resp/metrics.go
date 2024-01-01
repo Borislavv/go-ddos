@@ -12,12 +12,12 @@ import (
 
 type MetricsMiddleware struct {
 	logger    *logservice.Logger
-	collector *statservice.Collector
+	collector statservice.Collector
 }
 
 func NewMetricsMiddleware(
 	logger *logservice.Logger,
-	collector *statservice.Collector,
+	collector statservice.Collector,
 ) *MetricsMiddleware {
 	return &MetricsMiddleware{
 		logger:    logger,
@@ -30,14 +30,14 @@ func (m *MetricsMiddleware) CollectMetrics(next middleware.ResponseHandler) midd
 		var duration time.Duration
 
 		defer func() {
-			m.collector.AddTotal()
-			m.collector.AddTotalDuration(duration)
+			m.collector.AddTotalRequest()
+			m.collector.AddTotalRequestsDuration(duration)
 			if err != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
-				m.collector.AddFailed()
-				m.collector.AddFailedDuration(duration)
+				m.collector.AddFailedRequest()
+				m.collector.AddFailedRequestsDuration(duration)
 			} else {
-				m.collector.AddSuccess()
-				m.collector.AddSuccessDuration(duration)
+				m.collector.AddSuccessRequest()
+				m.collector.AddSuccessRequestsDuration(duration)
 			}
 		}()
 
