@@ -5,4 +5,4 @@ import (
 	statservice "ddos/internal/stat/domain/service"
 )
 
-type Voter func(cfg *config.Config, collector *statservice.Collector) bool
+type Voter func(cfg *config.Config, collector statservice.Collector) bool
