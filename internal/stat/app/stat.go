@@ -16,14 +16,14 @@ type Stat struct {
 	ctx       context.Context
 	cfg       *config.Config
 	renderer  *displayservice.Renderer
-	collector *statservice.Collector
+	collector statservice.Collector
 }
 
 func New(
 	ctx context.Context,
 	cfg *config.Config,
 	renderer *displayservice.Renderer,
-	collector *statservice.Collector,
+	collector statservice.Collector,
 ) *Stat {
 	return &Stat{
 		ctx:       ctx,
@@ -103,12 +103,12 @@ func (s *Stat) sendStat(wg *sync.WaitGroup) {
 				s.collector.SummaryDuration().String(),
 				fmt.Sprintf("%d", s.collector.SummaryRPS()),
 				fmt.Sprintf("%d", s.collector.Workers()),
-				fmt.Sprintf("%d", s.collector.SummaryTotal()),
-				fmt.Sprintf("%d", s.collector.SummarySuccess()),
-				fmt.Sprintf("%d", s.collector.SummaryFailed()),
-				s.collector.SummaryAvgTotalDuration().String(),
-				s.collector.SummaryAvgSuccessDuration().String(),
-				s.collector.SummaryAvgFailedDuration().String(),
+				fmt.Sprintf("%d", s.collector.SummaryTotalRequests()),
+				fmt.Sprintf("%d", s.collector.SummarySuccessRequests()),
+				fmt.Sprintf("%d", s.collector.SummaryFailedRequests()),
+				s.collector.SummaryAvgTotalRequestsDuration().String(),
+				s.collector.SummaryAvgSuccessRequestsDuration().String(),
+				s.collector.SummaryAvgFailedRequestsDuration().String(),
 				"All",
 				fmt.Sprintf("%d / %d", s.collector.HttpClientPoolBusy(), s.collector.HttpClientPoolTotal()),
 				fmt.Sprintf("%d", runtime.NumGoroutine()),
