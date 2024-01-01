@@ -81,8 +81,8 @@ func BenchmarkPooled_Do(b *testing.B) {
 			"total: %d, total duration: %d, avg duration ms: %v\n"+
 			"success: %d, success duration: %d, avg success ms: %v\n"+
 			"failed: %d, failed success: %d, avg failed ms: %v",
-		collector.Total(), collector.TotalDuration(), collector.AvgTotalDuration().String(),
-		collector.Success(), collector.SuccessDuration(), collector.AvgSuccessDuration().String(),
-		collector.Failed(), collector.FailedDuration(), collector.AvgFailedDuration().String(),
+		collector.TotalRequests(), collector.TotalRequestsDuration(), collector.AvgTotalRequestsDuration().String(),
+		collector.SuccessRequests(), collector.SuccessRequestsDuration(), collector.AvgSuccessRequestsDuration().String(),
+		collector.FailedRequests(), collector.FailedRequestsDuration(), collector.AvgFailedRequestsDuration().String(),
 	)
 }
