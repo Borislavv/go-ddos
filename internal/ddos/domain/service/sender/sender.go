@@ -14,14 +14,14 @@ type Sender struct {
 	cfg        *config.Config
 	logger     *logservice.Logger
 	httpClient *httpclient.Pool
-	collector  *statservice.Collector
+	collector  statservice.Collector
 }
 
 func NewSender(
 	cfg *config.Config,
 	logger *logservice.Logger,
 	httpClient *httpclient.Pool,
-	collector *statservice.Collector,
+	collector statservice.Collector,
 ) *Sender {
 	s := &Sender{
 		cfg:        cfg,
