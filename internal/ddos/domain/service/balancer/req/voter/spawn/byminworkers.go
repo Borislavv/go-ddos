@@ -5,8 +5,8 @@ import (
 	statservice "ddos/internal/stat/domain/service"
 )
 
-func ByMinWorkers() func(cfg *config.Config, collector *statservice.Collector) bool {
-	return func(cfg *config.Config, collector *statservice.Collector) bool {
+func ByMinWorkers() func(cfg *config.Config, collector statservice.Collector) bool {
+	return func(cfg *config.Config, collector statservice.Collector) bool {
 		return cfg.MaxWorkers > collector.Workers()
 	}
 }
