@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type Collector struct {
+type CollectorService struct {
 	ctx                context.Context
 	mu                 *sync.RWMutex
 	startedAt          time.Time
@@ -19,8 +19,8 @@ type Collector struct {
 	stages             int64
 }
 
-func NewCollector(ctx context.Context, httpClient httpclient.Pooled, duration time.Duration, stages int64) *Collector {
-	c := &Collector{
+func NewCollector(ctx context.Context, httpClient httpclient.Pooled, duration time.Duration, stages int64) *CollectorService {
+	c := &CollectorService{
 		ctx:              ctx,
 		startedAt:        time.Now(),
 		httpClient:       httpClient,
@@ -39,7 +39,7 @@ func NewCollector(ctx context.Context, httpClient httpclient.Pooled, duration ti
 	return c
 }
 
-func (c *Collector) Run(wg *sync.WaitGroup) {
+func (c *CollectorService) Run(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	refreshTicker := time.NewTicker(time.Millisecond * 100)
@@ -50,14 +50,14 @@ func (c *Collector) Run(wg *sync.WaitGroup) {
 		case <-c.ctx.Done():
 			return
 		case <-refreshTicker.C:
-			c.SetRPS()
+			c.setRPS()
 			c.SetHttpClientPoolBusy()
 			c.SetHttpClientPoolTotal()
 		}
 	}
 }
 
-func (c *Collector) firstMetric() *model.Metrics {
+func (c *CollectorService) firstMetric() *model.Metrics {
 	metric, ok := c.Metric(1)
 	if !ok {
 		metric = model.NewMetric()
@@ -68,7 +68,7 @@ func (c *Collector) firstMetric() *model.Metrics {
 	return metric
 }
 
-func (c *Collector) currentMetric() *model.Metrics {
+func (c *CollectorService) currentMetric() *model.Metrics {
 	current := int64(
 		math.Round(float64(time.Since(c.startedAt).Milliseconds()/c.durPerPercentile.Milliseconds())),
 	) + 1
@@ -88,54 +88,50 @@ func (c *Collector) currentMetric() *model.Metrics {
 }
 
 // Stages number. This value is not mutable.
-func (c *Collector) Stages() int64 {
+func (c *CollectorService) Stages() int64 {
 	return c.stages
 }
 
-func (c *Collector) Metric(stage int64) (metric *model.Metrics, found bool) {
+func (c *CollectorService) Metric(stage int64) (metric *model.Metrics, found bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	metric, found = c.percentilesMetrics[stage]
 	return metric, found
 }
 
-func (c *Collector) SummaryDuration() time.Duration {
+func (c *CollectorService) SummaryDuration() time.Duration {
 	return time.Since(c.startedAt)
 }
 
-func (c *Collector) SetRPS() {
+func (c *CollectorService) setRPS() {
 	c.currentMetric().SetRPS()
 }
 
-func (c *Collector) RPS() int64 {
-	return c.currentMetric().RPS()
-}
-
-func (c *Collector) SummaryRPS() int64 {
+func (c *CollectorService) SummaryRPS() int64 {
 	return int64(float64(c.summaryTotal()) / time.Since(c.startedAt).Seconds())
 }
 
-func (c *Collector) AddWorker() {
+func (c *CollectorService) AddWorker() {
 	c.currentMetric().AddWorkers(1)
 }
 
-func (c *Collector) RemoveWorker() {
+func (c *CollectorService) RemoveWorker() {
 	c.currentMetric().AddWorkers(-1)
 }
 
-func (c *Collector) Workers() int64 {
+func (c *CollectorService) Workers() int64 {
 	return c.currentMetric().Workers()
 }
 
-func (c *Collector) AddTotal() {
+func (c *CollectorService) AddTotalRequest() {
 	c.currentMetric().AddTotal()
 }
 
-func (c *Collector) Total() int64 {
+func (c *CollectorService) TotalRequests() int64 {
 	return c.currentMetric().Total()
 }
 
-func (c *Collector) summaryTotal() int64 {
+func (c *CollectorService) summaryTotal() int64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	var t int64
@@ -145,19 +141,19 @@ func (c *Collector) summaryTotal() int64 {
 	return t
 }
 
-func (c *Collector) SummaryTotal() int64 {
+func (c *CollectorService) SummaryTotalRequests() int64 {
 	return c.summaryTotal()
 }
 
-func (c *Collector) AddSuccess() {
+func (c *CollectorService) AddSuccessRequest() {
 	c.currentMetric().AddSuccess()
 }
 
-func (c *Collector) Success() int64 {
+func (c *CollectorService) SuccessRequests() int64 {
 	return c.currentMetric().Success()
 }
 
-func (c *Collector) SummarySuccess() int64 {
+func (c *CollectorService) SummarySuccessRequests() int64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -168,15 +164,15 @@ func (c *Collector) SummarySuccess() int64 {
 	return t
 }
 
-func (c *Collector) AddFailed() {
+func (c *CollectorService) AddFailedRequest() {
 	c.currentMetric().AddFailed()
 }
 
-func (c *Collector) Failed() int64 {
+func (c *CollectorService) FailedRequests() int64 {
 	return c.currentMetric().Failed()
 }
 
-func (c *Collector) SummaryFailed() int64 {
+func (c *CollectorService) SummaryFailedRequests() int64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -187,22 +183,22 @@ func (c *Collector) SummaryFailed() int64 {
 	return t
 }
 
-// AddTotalDuration for current percentile.
-func (c *Collector) AddTotalDuration(d time.Duration) {
+// AddTotalRequestsDuration for current percentile.
+func (c *CollectorService) AddTotalRequestsDuration(d time.Duration) {
 	c.currentMetric().AddTotalDuration(d)
 }
 
-func (c *Collector) TotalDuration() time.Duration {
-	return time.Duration(c.currentMetric().TotalDuration())
+func (c *CollectorService) TotalRequestsDuration() (ms int64) {
+	return c.currentMetric().TotalDuration()
 }
 
-// AvgTotalDuration of current percentile.
-func (c *Collector) AvgTotalDuration() time.Duration {
+// AvgTotalRequestsDuration of current percentile.
+func (c *CollectorService) AvgTotalRequestsDuration() time.Duration {
 	return c.currentMetric().AvgTotalDuration()
 }
 
-// SummaryAvgTotalDuration of all percentiles.
-func (c *Collector) SummaryAvgTotalDuration() time.Duration {
+// SummaryAvgTotalRequestsDuration of all percentiles.
+func (c *CollectorService) SummaryAvgTotalRequestsDuration() time.Duration {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -220,23 +216,23 @@ func (c *Collector) SummaryAvgTotalDuration() time.Duration {
 	}
 }
 
-// AddSuccessDuration for current percentile.
-func (c *Collector) AddSuccessDuration(d time.Duration) {
+// AddSuccessRequestsDuration for current percentile.
+func (c *CollectorService) AddSuccessRequestsDuration(d time.Duration) {
 	c.currentMetric().AddSuccessDuration(d)
 }
 
-// SuccessDuration of current percentile.
-func (c *Collector) SuccessDuration() (ms int64) {
+// SuccessRequestsDuration of current percentile.
+func (c *CollectorService) SuccessRequestsDuration() (ms int64) {
 	return c.currentMetric().SuccessDuration()
 }
 
-// AvgSuccessDuration of current percentile.
-func (c *Collector) AvgSuccessDuration() time.Duration {
+// AvgSuccessRequestsDuration of current percentile.
+func (c *CollectorService) AvgSuccessRequestsDuration() time.Duration {
 	return c.currentMetric().AvgSuccessDuration()
 }
 
-// SummaryAvgSuccessDuration of all percentiles.
-func (c *Collector) SummaryAvgSuccessDuration() time.Duration {
+// SummaryAvgSuccessRequestsDuration of all percentiles.
+func (c *CollectorService) SummaryAvgSuccessRequestsDuration() time.Duration {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -254,23 +250,23 @@ func (c *Collector) SummaryAvgSuccessDuration() time.Duration {
 	}
 }
 
-// AddFailedDuration for current percentile.
-func (c *Collector) AddFailedDuration(d time.Duration) {
+// AddFailedRequestsDuration for current percentile.
+func (c *CollectorService) AddFailedRequestsDuration(d time.Duration) {
 	c.currentMetric().AddFailedDuration(d)
 }
 
-// FailedDuration of current percentile.
-func (c *Collector) FailedDuration() (ms int64) {
+// FailedRequestsDuration of current percentile.
+func (c *CollectorService) FailedRequestsDuration() (ms int64) {
 	return c.currentMetric().FailedDuration()
 }
 
-// AvgFailedDuration of current percentile.
-func (c *Collector) AvgFailedDuration() time.Duration {
+// AvgFailedRequestsDuration of current percentile.
+func (c *CollectorService) AvgFailedRequestsDuration() time.Duration {
 	return c.currentMetric().AvgFailedDuration()
 }
 
-// SummaryAvgFailedDuration of all percentiles.
-func (c *Collector) SummaryAvgFailedDuration() time.Duration {
+// SummaryAvgFailedRequestsDuration of all percentiles.
+func (c *CollectorService) SummaryAvgFailedRequestsDuration() time.Duration {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -288,18 +284,18 @@ func (c *Collector) SummaryAvgFailedDuration() time.Duration {
 	}
 }
 
-func (c *Collector) HttpClientPoolBusy() int64 {
+func (c *CollectorService) HttpClientPoolBusy() int64 {
 	return c.currentMetric().HttpClientPoolBusy()
 }
 
-func (c *Collector) SetHttpClientPoolBusy() {
+func (c *CollectorService) SetHttpClientPoolBusy() {
 	c.currentMetric().SetHttpClientPoolBusy(c.httpClient.Busy())
 }
 
-func (c *Collector) HttpClientPoolTotal() int64 {
+func (c *CollectorService) HttpClientPoolTotal() int64 {
 	return c.currentMetric().HttpClientPoolTotal()
 }
 
-func (c *Collector) SetHttpClientPoolTotal() {
+func (c *CollectorService) SetHttpClientPoolTotal() {
 	c.currentMetric().SetHttpClientPoolTotal(c.httpClient.Total())
 }
