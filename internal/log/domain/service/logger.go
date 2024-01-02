@@ -2,47 +2,61 @@ package logservice
 
 import (
 	"context"
+	"ddos/config"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 )
 
 type CloseFunc func()
 
-type Logger struct {
-	ctx    context.Context
-	logsCh chan string
+type Async struct {
+	ctx context.Context
+	ch  chan string
+	fd  *os.File
 }
 
-func NewLogger(ctx context.Context, buffer int) (*Logger, CloseFunc) {
-	l := &Logger{
-		ctx:    ctx,
-		logsCh: make(chan string, buffer),
+func NewAsync(ctx context.Context, cfg *config.Config) (*Async, CloseFunc) {
+	l := &Async{
+		ctx: ctx,
+		ch:  make(chan string, cfg.MaxRPS*int(cfg.MaxWorkers)),
 	}
+
+	if cfg.LogFile != "" {
+		f, err := os.Create(cfg.LogFile)
+		if err != nil {
+			panic(err)
+		}
+		l.fd = f
+		log.SetOutput(f)
+	}
+
 	return l, l.cls
 }
 
-func (l *Logger) Run(mwg *sync.WaitGroup) {
-	defer mwg.Done()
+func (l *Async) Run(wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	for {
 		select {
 		case <-l.ctx.Done():
 			return
-		case msg := <-l.logsCh:
+		case msg := <-l.ch:
 			log.Println(msg)
 		}
 	}
 }
 
-func (l *Logger) Println(msg string) {
-	l.logsCh <- msg
+func (l *Async) Println(msg string) {
+	l.ch <- msg
 }
 
-func (l *Logger) Printf(msg string, args ...any) {
-	l.logsCh <- fmt.Sprintf(msg, args...)
+func (l *Async) Printf(msg string, args ...any) {
+	l.ch <- fmt.Sprintf(msg, args...)
 }
 
-func (l *Logger) cls() {
-	close(l.logsCh)
+func (l *Async) cls() {
+	close(l.ch)
+	_ = l.fd.Close()
 }
