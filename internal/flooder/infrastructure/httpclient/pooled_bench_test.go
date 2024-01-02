@@ -33,20 +33,19 @@ func BenchmarkPooled_Do(b *testing.B) {
 		PoolMaxSize:  1024,
 	}
 
-	client, cancelPool := NewPool(ctx, cfg, func() *http.Client {
+	logger := logservice.NewAsync(ctx, &config.Config{MaxWorkers: 2, MaxRPS: 10})
+	defer func() { _ = logger.Close() }()
+
+	client := NewPool(ctx, cfg, func() *http.Client {
 		return &http.Client{Timeout: time.Minute}
 	})
-	defer cancelPool()
+	defer func() { _ = client.Close() }()
 
-	collector := statservice.NewCollectorService(ctx, client, time.Minute*5, 1)
-
-	logger, loggerClose := logservice.NewAsync(ctx, &config.Config{MaxWorkers: 2, MaxRPS: 10})
-	defer loggerClose()
-	mw := respmiddleware.NewMetricsMiddleware(logger, collector)
+	collector := statservice.NewCollectorService(ctx, logger, client, time.Minute*5, 1)
 
 	client.
 		OnReq(reqmiddleware.NewTimestampMiddleware().AddTimestamp).
-		OnResp(mw.CollectMetrics)
+		OnResp(respmiddleware.NewMetricsMiddleware(logger, collector).CollectMetrics)
 
 	b.ResetTimer()
 	b.StartTimer()
