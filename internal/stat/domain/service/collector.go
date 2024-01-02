@@ -71,17 +71,6 @@ func (c *CollectorService) Run(wg *sync.WaitGroup) {
 	}
 }
 
-func (c *CollectorService) firstMetric() *statmodel.Metrics {
-	metric, ok := c.Metric(1)
-	if !ok {
-		metric = statmodel.NewMetric()
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		c.percentilesMetrics[1] = metric
-	}
-	return metric
-}
-
 func (c *CollectorService) currentMetric() *statmodel.Metrics {
 	current := int64(
 		math.Round(float64(time.Since(c.startedAt).Milliseconds()/c.durPerPercentile.Milliseconds())),
