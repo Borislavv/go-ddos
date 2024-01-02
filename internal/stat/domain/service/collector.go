@@ -11,17 +11,25 @@ import (
 )
 
 type CollectorService struct {
-	ctx                context.Context
-	mu                 *sync.RWMutex
-	logger             logservice.Logger
+	ctx context.Context
+	mu  *sync.RWMutex
+
+	logger     logservice.Logger
+	httpClient httpclient.Pooled
+
 	startedAt          time.Time
-	httpClient         httpclient.Pooled
 	durPerPercentile   time.Duration
 	percentilesMetrics map[int64]*statmodel.Metrics
 	stages             int64
 }
 
-func NewCollectorService(ctx context.Context, logger logservice.Logger, httpClient httpclient.Pooled, duration time.Duration, stages int64) *CollectorService {
+func NewCollectorService(
+	ctx context.Context,
+	logger logservice.Logger,
+	httpClient httpclient.Pooled,
+	duration time.Duration,
+	stages int64,
+) *CollectorService {
 	c := &CollectorService{
 		ctx:              ctx,
 		logger:           logger,
