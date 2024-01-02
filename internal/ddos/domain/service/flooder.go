@@ -18,7 +18,7 @@ type Flooder struct {
 
 	cfg         *ddos.Config
 	manager     *req.Manager
-	logger      *logservice.Logger
+	logger      logservice.Logger
 	collector   statservice.Collector
 	reqBalancer *reqsender.Balancer
 }
@@ -27,7 +27,7 @@ func NewFlooder(
 	ctx context.Context,
 	cfg *ddos.Config,
 	manager *req.Manager,
-	logger *logservice.Logger,
+	logger logservice.Logger,
 	reqBalancer *reqsender.Balancer,
 	collector statservice.Collector,
 ) *Flooder {
