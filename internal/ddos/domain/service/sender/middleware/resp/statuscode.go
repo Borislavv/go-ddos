@@ -7,10 +7,10 @@ import (
 )
 
 type StatusCodeMiddleware struct {
-	logger *logservice.Logger
+	logger logservice.Logger
 }
 
-func NewStatusCodeMiddleware(logger *logservice.Logger) *StatusCodeMiddleware {
+func NewStatusCodeMiddleware(logger logservice.Logger) *StatusCodeMiddleware {
 	return &StatusCodeMiddleware{logger: logger}
 }
 
