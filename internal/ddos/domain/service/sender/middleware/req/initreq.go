@@ -7,10 +7,10 @@ import (
 )
 
 type InitRequestMiddleware struct {
-	logger *logservice.Logger
+	logger logservice.Logger
 }
 
-func NewInitRequestMiddleware(logger *logservice.Logger) *InitRequestMiddleware {
+func NewInitRequestMiddleware(logger logservice.Logger) *InitRequestMiddleware {
 	return &InitRequestMiddleware{logger: logger}
 }
 
