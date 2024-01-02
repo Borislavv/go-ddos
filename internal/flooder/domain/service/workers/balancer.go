@@ -18,7 +18,7 @@ var (
 	CloseVoteStrategyWasNotFoundError = errors.New("close vote strategy not found")
 )
 
-type Balancer struct {
+type BalancerService struct {
 	ctx                  context.Context
 	cfg                  *config.Config
 	collector            statservice.Collector
@@ -28,12 +28,12 @@ type Balancer struct {
 	votersForClose       []voter.Voter
 }
 
-func NewBalancer(
+func NewBalancerService(
 	ctx context.Context,
 	cfg *config.Config,
 	collector statservice.Collector,
-) *Balancer {
-	s := &Balancer{
+) *BalancerService {
+	s := &BalancerService{
 		ctx:       ctx,
 		cfg:       cfg,
 		collector: collector,
@@ -59,7 +59,7 @@ func NewBalancer(
 	return s
 }
 
-func (s *Balancer) initVoteStrategyForSpawn() error {
+func (s *BalancerService) initVoteStrategyForSpawn() error {
 	switch enum.VoteStrategy(s.cfg.VoteForSpawnReqSenderStrategy) {
 	case enum.AllVotersStrategy:
 		s.voteStrategyForSpawn = votestrategy2.NewAllVoters(s.votersForSpawn, s.cfg, s.collector)
@@ -75,7 +75,7 @@ func (s *Balancer) initVoteStrategyForSpawn() error {
 	}
 }
 
-func (s *Balancer) initVoteStrategyForClose() error {
+func (s *BalancerService) initVoteStrategyForClose() error {
 	switch enum.VoteStrategy(s.cfg.VoteForCloseReqSenderStrategy) {
 	case enum.AllVotersStrategy:
 		s.voteStrategyForClose = votestrategy2.NewAllVoters(s.votersForClose, s.cfg, s.collector)
@@ -91,7 +91,7 @@ func (s *Balancer) initVoteStrategyForClose() error {
 	}
 }
 
-func (s *Balancer) initVotersForSpawn() {
+func (s *BalancerService) initVotersForSpawn() {
 	s.votersForSpawn = []voter.Voter{
 		//spawnvoter.ByRPS(s.cfg, s.collector),
 		//spawnvoter.ByInterval(s.cfg, s.collector),
@@ -100,7 +100,7 @@ func (s *Balancer) initVotersForSpawn() {
 	}
 }
 
-func (s *Balancer) initVotersForClose() {
+func (s *BalancerService) initVotersForClose() {
 	s.votersForClose = []voter.Voter{
 		//closevoter.ByRPS(s.cfg, s.collector),
 		closevoter.ByMaxWorkers(),
@@ -108,10 +108,10 @@ func (s *Balancer) initVotersForClose() {
 	}
 }
 
-func (s *Balancer) IsMustBeSpawned() bool {
+func (s *BalancerService) IsMustBeSpawned() bool {
 	return s.voteStrategyForSpawn.IsFor()
 }
 
-func (s *Balancer) IsMustBeClosed() bool {
+func (s *BalancerService) IsMustBeClosed() bool {
 	return s.voteStrategyForClose.IsFor()
 }

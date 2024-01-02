@@ -1,6 +1,6 @@
 package workers
 
-type SenderInterface interface {
+type Balancer interface {
 	IsMustBeSpawned() bool
 	IsMustBeClosed() bool
 }
