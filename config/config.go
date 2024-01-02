@@ -20,12 +20,12 @@ type Config struct {
 	LogHeaders []string `arg:"-h,separate,env:CATCH_HEADERS"`
 
 	// PoolInitSize is httpclient pool init. size.
-	PoolInitSize int `arg:"-i,env:HTTP_CLIENT_POOL_INIT_SIZE"   default:"32"`
+	PoolInitSize int `arg:"-i,env:HTTP_CLIENT_POOL_INIT_SIZE" default:"32"`
 	// PoolMaxSize is httpclient pool max size.
-	PoolMaxSize int `arg:"-m,env:HTTP_CLIENT_POOL_MAX_SIZE"    default:"10240"`
+	PoolMaxSize int `arg:"-m,env:HTTP_CLIENT_POOL_MAX_SIZE"   default:"10240"`
 
 	// ReqSenderSpawnInterval is using for spawn_by_interval strategy.
-	ReqSenderSpawnInterval string `arg:"-i,env:SPAWN_REQ_SENDER_INTERVAL" default:"1m"`
+	ReqSenderSpawnInterval string `arg:"-i,env:SPAWN_REQ_SENDER_INTERVAL"     default:"1m"`
 	// VoteForSpawnReqSenderStrategy tells which approach will be used for spawn a new worker for send requests.
 	// Options:
 	// 	all 		 - means that all voters must vote for spawn a new worker.
