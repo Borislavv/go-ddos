@@ -15,7 +15,6 @@ import (
 	stat "ddos/internal/stat/app"
 	statservice "ddos/internal/stat/domain/service"
 	"github.com/alexflint/go-arg"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,53 +23,50 @@ import (
 	"time"
 )
 
-func main() {
+func initCfg() (*config.Config, *httpclientconfig.Config) {
 	cfg := &config.Config{}
 	arg.MustParse(cfg)
 
-	httpClientPoolCfg := &httpclientconfig.Config{
+	poolCfg := &httpclientconfig.Config{
 		PoolInitSize: cfg.PoolInitSize,
 		PoolMaxSize:  cfg.PoolMaxSize,
 	}
 
-	if cfg.LogFile != "" {
-		logfile, err := os.Create(cfg.LogFile)
-		if err != nil {
-			panic(err)
-		}
-		defer func() { _ = logfile.Close() }()
-		log.SetOutput(logfile)
-	}
+	return cfg, poolCfg
+}
+
+func main() {
+	mainCfg, poolCfg := initCfg()
 
 	exitCh := make(chan os.Signal, 1)
 	defer close(exitCh)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 
-	duration, err := time.ParseDuration(cfg.Duration)
+	duration, err := time.ParseDuration(mainCfg.Duration)
 	if err != nil {
 		panic(err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 
-	creator := func() *http.Client { return &http.Client{Timeout: time.Minute} }
-	pool, poolCls := httpclient.NewPool(ctx, httpClientPoolCfg, creator)
-	defer poolCls()
-
-	lg, loggerCls := logservice.NewLogger(ctx, cfg.MaxRPS*int(cfg.MaxWorkers))
+	lg, loggerCls := logservice.NewAsync(ctx, mainCfg)
 	defer loggerCls()
+
+	creator := func() *http.Client { return &http.Client{Timeout: time.Minute} }
+	pool, poolCls := httpclient.NewPool(ctx, poolCfg, creator)
+	defer poolCls()
 
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 
-	cl := statservice.NewCollector(ctx, pool, duration, cfg.Stages)
-	rr := displayservice.NewRenderer(ctx, cfg, exitCh)
-	st := stat.New(ctx, cfg, rr, cl)
+	cl := statservice.NewCollector(ctx, pool, duration, mainCfg.Stages)
+	rr := displayservice.NewRenderer(ctx, mainCfg, exitCh)
+	st := stat.New(ctx, mainCfg, rr, cl)
 	dy := display.New(ctx, rr)
-	sr := sender.NewSender(cfg, lg, pool, cl)
+	sr := sender.NewSender(mainCfg, lg, pool, cl)
 	mg := req.NewManager(ctx, sr, cl)
-	bl := reqsender.NewBalancer(ctx, cfg, cl)
-	fl := ddosservice.NewFlooder(ctx, cfg, mg, lg, bl, cl)
+	bl := reqsender.NewBalancer(ctx, mainCfg, cl)
+	fl := ddosservice.NewFlooder(ctx, mainCfg, mg, lg, bl, cl)
 
 	wg.Add(5)
 	go lg.Run(wg)
