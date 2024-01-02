@@ -1,4 +1,4 @@
-module ddos
+module github.com/Borislavv/go-ddos
 
 go 1.21.5
 
