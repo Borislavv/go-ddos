@@ -11,12 +11,12 @@ import (
 )
 
 type MetricsMiddleware struct {
-	logger    *logservice.Logger
+	logger    logservice.Logger
 	collector statservice.Collector
 }
 
 func NewMetricsMiddleware(
-	logger *logservice.Logger,
+	logger logservice.Logger,
 	collector statservice.Collector,
 ) *MetricsMiddleware {
 	return &MetricsMiddleware{
