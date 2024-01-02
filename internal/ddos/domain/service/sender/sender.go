@@ -12,14 +12,14 @@ import (
 
 type Sender struct {
 	cfg        *config.Config
-	logger     *logservice.Logger
+	logger     logservice.Logger
 	httpClient *httpclient.Pool
 	collector  statservice.Collector
 }
 
 func NewSender(
 	cfg *config.Config,
-	logger *logservice.Logger,
+	logger logservice.Logger,
 	httpClient *httpclient.Pool,
 	collector statservice.Collector,
 ) *Sender {
