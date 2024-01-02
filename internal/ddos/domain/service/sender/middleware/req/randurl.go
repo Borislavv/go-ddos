@@ -11,10 +11,10 @@ import (
 
 type RandUrlMiddleware struct {
 	URLs   []string
-	logger *logservice.Logger
+	logger logservice.Logger
 }
 
-func NewRandUrlMiddleware(URLs []string, logger *logservice.Logger) *RandUrlMiddleware {
+func NewRandUrlMiddleware(URLs []string, logger logservice.Logger) *RandUrlMiddleware {
 	return &RandUrlMiddleware{URLs: URLs, logger: logger}
 }
 
