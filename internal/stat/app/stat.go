@@ -8,8 +8,8 @@ import (
 	logservice "ddos/internal/log/domain/service"
 	"ddos/internal/stat/domain/model"
 	statservice "ddos/internal/stat/domain/service"
-	"fmt"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -125,33 +125,33 @@ func (s *App) buildRows() [][]string {
 func (s *App) buildRow(percentile int64, metric *statmodel.Metrics) []string {
 	return []string{
 		metric.Duration().String(),
-		fmt.Sprintf("%d", metric.RPS()),
-		fmt.Sprintf("%d", metric.Workers()),
-		fmt.Sprintf("%d", metric.Total()),
-		fmt.Sprintf("%d", metric.Success()),
-		fmt.Sprintf("%d", metric.Failed()),
+		strconv.FormatInt(metric.RPS(), 10),
+		strconv.FormatInt(metric.Workers(), 10),
+		strconv.FormatInt(metric.Total(), 10),
+		strconv.FormatInt(metric.Success(), 10),
+		strconv.FormatInt(metric.Failed(), 10),
 		metric.AvgTotalDuration().String(),
 		metric.AvgSuccessDuration().String(),
 		metric.AvgFailedDuration().String(),
-		fmt.Sprintf("%d of %d", percentile, s.collector.Stages()),
-		fmt.Sprintf("%d / %d", s.collector.HttpClientPoolBusy(), s.collector.HttpClientPoolTotal()),
-		fmt.Sprintf("%d", runtime.NumGoroutine()),
+		strconv.FormatInt(percentile, 10) + " of " + strconv.FormatInt(s.collector.Stages(), 10),
+		strconv.FormatInt(s.collector.HttpClientPoolBusy(), 10) + " / " + strconv.FormatInt(s.collector.HttpClientPoolTotal(), 10),
+		strconv.Itoa(runtime.NumGoroutine()),
 	}
 }
 
 func (s *App) buildSummaryRow() []string {
 	return []string{
 		s.collector.SummaryDuration().String(),
-		fmt.Sprintf("%d", s.collector.SummaryRPS()),
-		fmt.Sprintf("%d", s.collector.Workers()),
-		fmt.Sprintf("%d", s.collector.SummaryTotalRequests()),
-		fmt.Sprintf("%d", s.collector.SummarySuccessRequests()),
-		fmt.Sprintf("%d", s.collector.SummaryFailedRequests()),
+		strconv.FormatInt(s.collector.SummaryRPS(), 10),
+		strconv.FormatInt(s.collector.Workers(), 10),
+		strconv.FormatInt(s.collector.SummaryTotalRequests(), 10),
+		strconv.FormatInt(s.collector.SummarySuccessRequests(), 10),
+		strconv.FormatInt(s.collector.SummaryFailedRequests(), 10),
 		s.collector.SummaryAvgTotalRequestsDuration().String(),
 		s.collector.SummaryAvgSuccessRequestsDuration().String(),
 		s.collector.SummaryAvgFailedRequestsDuration().String(),
 		"All",
-		fmt.Sprintf("%d / %d", s.collector.HttpClientPoolBusy(), s.collector.HttpClientPoolTotal()),
-		fmt.Sprintf("%d", runtime.NumGoroutine()),
+		strconv.FormatInt(s.collector.HttpClientPoolBusy(), 10) + " / " + strconv.FormatInt(s.collector.HttpClientPoolTotal(), 10),
+		strconv.Itoa(runtime.NumGoroutine()),
 	}
 }
