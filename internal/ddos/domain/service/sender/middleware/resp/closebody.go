@@ -7,10 +7,10 @@ import (
 )
 
 type CloseBodyMiddleware struct {
-	logger *logservice.Logger
+	logger logservice.Logger
 }
 
-func NewCloseBodyMiddleware(logger *logservice.Logger) *CloseBodyMiddleware {
+func NewCloseBodyMiddleware(logger logservice.Logger) *CloseBodyMiddleware {
 	return &CloseBodyMiddleware{logger: logger}
 }
 
