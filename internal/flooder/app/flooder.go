@@ -12,22 +12,22 @@ import (
 )
 
 type App struct {
-	mu          *sync.RWMutex
 	ctx         context.Context
+	mu          *sync.RWMutex
 	cfg         *ddos.Config
+	manager     workers.Manager
+	reqBalancer workers.Balancer
 	logger      logservice.Logger
-	reqBalancer *workers.Balancer
 	collector   statservice.Collector
-	manager     *workers.ManagerService
 }
 
 func New(
 	ctx context.Context,
 	cfg *ddos.Config,
 	logger logservice.Logger,
-	reqBalancer *workers.Balancer,
+	reqBalancer workers.Balancer,
 	collector statservice.Collector,
-	manager *workers.ManagerService,
+	manager workers.Manager,
 ) *App {
 	return &App{
 		mu:          &sync.RWMutex{},
