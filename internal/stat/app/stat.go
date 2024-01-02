@@ -2,12 +2,12 @@ package stat
 
 import (
 	"context"
-	"ddos/config"
-	displaymodel "ddos/internal/display/domain/model"
-	displayservice "ddos/internal/display/domain/service"
-	logservice "ddos/internal/log/domain/service"
-	"ddos/internal/stat/domain/model"
-	statservice "ddos/internal/stat/domain/service"
+	"github.com/Borislavv/go-ddos/config"
+	displaymodel "github.com/Borislavv/go-ddos/internal/display/domain/model"
+	displayservice "github.com/Borislavv/go-ddos/internal/display/domain/service"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
+	"github.com/Borislavv/go-ddos/internal/stat/domain/model"
+	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"runtime"
 	"strconv"
 	"sync"

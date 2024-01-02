@@ -1,7 +1,7 @@
 package reqmiddleware
 
 import (
-	"ddos/internal/flooder/infrastructure/httpclient/middleware"
+	"github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
 	"net/http"
 	"strconv"
 	"time"

@@ -2,9 +2,9 @@ package workers
 
 import (
 	"context"
-	"ddos/internal/flooder/domain/service/sender"
-	logservice "ddos/internal/log/domain/service"
-	statservice "ddos/internal/stat/domain/service"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
+	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"net/http"
 	"sync"
 	"time"

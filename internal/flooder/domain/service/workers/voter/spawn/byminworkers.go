@@ -1,8 +1,8 @@
 package balancerspawnvoter
 
 import (
-	"ddos/config"
-	statservice "ddos/internal/stat/domain/service"
+	"github.com/Borislavv/go-ddos/config"
+	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 )
 
 func ByMinWorkers() func(cfg *config.Config, collector statservice.Collector) bool {

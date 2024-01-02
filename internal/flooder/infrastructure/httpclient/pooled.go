@@ -2,8 +2,8 @@ package httpclient
 
 import (
 	"context"
-	config "ddos/internal/flooder/infrastructure/httpclient/config"
-	middleware "ddos/internal/flooder/infrastructure/httpclient/middleware"
+	config "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
+	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
 	"net/http"
 	"sync/atomic"
 )

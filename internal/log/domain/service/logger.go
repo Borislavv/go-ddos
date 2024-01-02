@@ -2,8 +2,8 @@ package logservice
 
 import (
 	"context"
-	"ddos/config"
 	"fmt"
+	"github.com/Borislavv/go-ddos/config"
 	"log"
 	"math"
 	"os"

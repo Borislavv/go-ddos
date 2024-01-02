@@ -2,12 +2,12 @@ package httpclient
 
 import (
 	"context"
-	"ddos/config"
-	reqmiddleware "ddos/internal/flooder/domain/service/sender/middleware/req"
-	"ddos/internal/flooder/domain/service/sender/middleware/resp"
-	"ddos/internal/flooder/infrastructure/httpclient/config"
-	logservice "ddos/internal/log/domain/service"
-	statservice "ddos/internal/stat/domain/service"
+	"github.com/Borislavv/go-ddos/config"
+	reqmiddleware "github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender/middleware/req"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender/middleware/resp"
+	"github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
+	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"io"
 	"net/http"
 	"net/http/httptest"

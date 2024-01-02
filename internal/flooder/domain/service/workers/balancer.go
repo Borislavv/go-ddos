@@ -2,15 +2,15 @@ package workers
 
 import (
 	"context"
-	"ddos/config"
-	"ddos/internal/flooder/domain/enum"
-	"ddos/internal/flooder/domain/service/workers/vote"
-	votestrategy2 "ddos/internal/flooder/domain/service/workers/vote/strategy"
-	"ddos/internal/flooder/domain/service/workers/voter"
-	closevoter "ddos/internal/flooder/domain/service/workers/voter/close"
-	spawnvoter "ddos/internal/flooder/domain/service/workers/voter/spawn"
-	statservice "ddos/internal/stat/domain/service"
 	"errors"
+	"github.com/Borislavv/go-ddos/config"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/vote"
+	votestrategy2 "github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/vote/strategy"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter"
+	closevoter "github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter/close"
+	spawnvoter "github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter/spawn"
+	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 )
 
 var (

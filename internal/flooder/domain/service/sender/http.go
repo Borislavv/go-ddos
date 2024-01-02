@@ -1,12 +1,12 @@
 package sender
 
 import (
-	"ddos/config"
-	"ddos/internal/flooder/domain/service/sender/middleware/req"
-	respmiddleware "ddos/internal/flooder/domain/service/sender/middleware/resp"
-	"ddos/internal/flooder/infrastructure/httpclient"
-	logservice "ddos/internal/log/domain/service"
-	statservice "ddos/internal/stat/domain/service"
+	"github.com/Borislavv/go-ddos/config"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender/middleware/req"
+	respmiddleware "github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender/middleware/resp"
+	"github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
+	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"net/http"
 )
 

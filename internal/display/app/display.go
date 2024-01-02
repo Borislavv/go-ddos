@@ -2,8 +2,8 @@ package display
 
 import (
 	"context"
-	displayservice "ddos/internal/display/domain/service"
-	logservice "ddos/internal/log/domain/service"
+	displayservice "github.com/Borislavv/go-ddos/internal/display/domain/service"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	"sync"
 )
 

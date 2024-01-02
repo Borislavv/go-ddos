@@ -1,8 +1,8 @@
 package respmiddleware
 
 import (
-	middleware "ddos/internal/flooder/infrastructure/httpclient/middleware"
-	logservice "ddos/internal/log/domain/service"
+	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	"net/http"
 )
 

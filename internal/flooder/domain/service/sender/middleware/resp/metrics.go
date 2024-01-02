@@ -1,10 +1,10 @@
 package respmiddleware
 
 import (
-	reqmiddleware "ddos/internal/flooder/domain/service/sender/middleware/req"
-	middleware "ddos/internal/flooder/infrastructure/httpclient/middleware"
-	logservice "ddos/internal/log/domain/service"
-	statservice "ddos/internal/stat/domain/service"
+	reqmiddleware "github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender/middleware/req"
+	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
+	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"net/http"
 	"strconv"
 	"time"

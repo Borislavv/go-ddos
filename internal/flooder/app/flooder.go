@@ -2,10 +2,10 @@ package flooder
 
 import (
 	"context"
-	ddos "ddos/config"
-	"ddos/internal/flooder/domain/service/workers"
-	logservice "ddos/internal/log/domain/service"
-	statservice "ddos/internal/stat/domain/service"
+	ddos "github.com/Borislavv/go-ddos/config"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
+	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"runtime"
 	"sync"
 	"time"

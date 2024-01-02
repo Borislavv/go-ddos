@@ -1,8 +1,8 @@
 package reqmiddleware
 
 import (
-	"ddos/internal/flooder/infrastructure/httpclient/middleware"
-	logservice "ddos/internal/log/domain/service"
+	"github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	"math/rand"
 	"net/http"
 	"net/url"

@@ -2,7 +2,7 @@ package displayservice
 
 import (
 	"context"
-	displaymodel "ddos/internal/display/domain/model"
+	displaymodel "github.com/Borislavv/go-ddos/internal/display/domain/model"
 	"sync"
 )
 

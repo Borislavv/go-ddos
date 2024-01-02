@@ -2,8 +2,8 @@ package displayservice
 
 import (
 	"context"
-	displaymodel "ddos/internal/display/domain/model"
-	logservice "ddos/internal/log/domain/service"
+	displaymodel "github.com/Borislavv/go-ddos/internal/display/domain/model"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	"github.com/nsf/termbox-go"
 	"github.com/olekukonko/tablewriter"
 	"os"

@@ -2,9 +2,9 @@ package statservice
 
 import (
 	"context"
-	"ddos/internal/flooder/infrastructure/httpclient"
-	logservice "ddos/internal/log/domain/service"
-	"ddos/internal/stat/domain/model"
+	"github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient"
+	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
+	"github.com/Borislavv/go-ddos/internal/stat/domain/model"
 	"math"
 	"sync"
 	"time"

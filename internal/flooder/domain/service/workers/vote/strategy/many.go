@@ -1,9 +1,9 @@
 package votestrategy
 
 import (
-	"ddos/config"
-	"ddos/internal/flooder/domain/service/workers/voter"
-	statservice "ddos/internal/stat/domain/service"
+	"github.com/Borislavv/go-ddos/config"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter"
+	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 )
 
 type ManyVoters struct {

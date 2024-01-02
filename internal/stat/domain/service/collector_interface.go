@@ -1,7 +1,7 @@
 package statservice
 
 import (
-	"ddos/internal/stat/domain/model"
+	"github.com/Borislavv/go-ddos/internal/stat/domain/model"
 	"sync"
 	"time"
 )
