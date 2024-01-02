@@ -8,8 +8,9 @@ type Config struct {
 	ExpectedResponseData string `arg:"-e,env:EXPECTED_RESPONSE_DATA"`
 	// MaxRPS is a maximum number of requests per one second.
 	MaxRPS int `arg:"-r,env:MAX_RPS"                         default:"10"`
-	// MaxWorkers is a maximum workers number which will be spawn.
-	MaxWorkers int64 `arg:"-w,env:MAX_WORKERS"               default:"5"`
+	// InitWorkersNum is an initial number of workers which will be spawn
+	// (if you didn't specify any other spawn strategies, then it will be the max workers number).
+	InitWorkersNum int64 `arg:"-w,env:MAX_WORKERS"           default:"5"`
 	// Duration is a string which contains duration of the DDOS execution.
 	Duration string `arg:"-d,env:DURATION"                   default:"10m"`
 	// Stages is a number of parts by which will be separated output table.
@@ -42,7 +43,7 @@ type Config struct {
 	//	for spawn a new worker for send requests (allowed any combinations).
 	//
 	// Options:
-	//	spawn_by_max_workers  	- for this case will be used MaxWorkers configuration value.
+	//	spawn_by_max_workers  	- for this case will be used InitWorkersNum configuration value.
 	//		If number of active workers is under this value, them will spawn until it will not.
 	//	spawn_by_rps			- for this case will be used current RPS (requests per second)
 	//		for determine whether is necessary to spawn a new worker. For each 10 RPS will spawn a new worker.
@@ -54,7 +55,7 @@ type Config struct {
 	//	for close a worker (allowed any combinations).
 	//
 	// Options:
-	//	close_by_max_workers  - for this case will be used MaxWorkers configuration value.
+	//	close_by_max_workers  - for this case will be used InitWorkersNum configuration value.
 	//		If number of active workers is above this value, them will close one by one until it will not.
 	//	close_by_rps			- for this case will be used current RPS (requests per second)
 	//		for determine whether is necessary to close a worker.
