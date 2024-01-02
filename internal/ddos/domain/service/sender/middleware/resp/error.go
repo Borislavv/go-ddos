@@ -9,10 +9,10 @@ import (
 )
 
 type ErrorMiddleware struct {
-	logger *logservice.Logger
+	logger logservice.Logger
 }
 
-func NewErrorMiddleware(logger *logservice.Logger) *ErrorMiddleware {
+func NewErrorMiddleware(logger logservice.Logger) *ErrorMiddleware {
 	return &ErrorMiddleware{logger: logger}
 }
 
