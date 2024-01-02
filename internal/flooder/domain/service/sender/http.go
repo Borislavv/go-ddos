@@ -13,14 +13,14 @@ import (
 type Http struct {
 	cfg        *config.Config
 	logger     logservice.Logger
-	httpClient *httpclient.Pool
+	httpClient httpclient.Pooled
 	collector  statservice.Collector
 }
 
 func NewHttp(
 	cfg *config.Config,
 	logger logservice.Logger,
-	httpClient *httpclient.Pool,
+	httpClient httpclient.Pooled,
 	collector statservice.Collector,
 ) *Http {
 	s := &Http{
