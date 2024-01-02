@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"context"
+	"ddos/config"
 	reqmiddleware "ddos/internal/ddos/domain/service/sender/middleware/req"
 	"ddos/internal/ddos/domain/service/sender/middleware/resp"
 	"ddos/internal/ddos/infrastructure/httpclient/config"
@@ -39,7 +40,7 @@ func BenchmarkPooled_Do(b *testing.B) {
 
 	collector := statservice.NewCollector(ctx, client, time.Minute*5, 1)
 
-	logger, loggerClose := logservice.NewLogger(ctx, 100000)
+	logger, loggerClose := logservice.NewAsync(ctx, &config.Config{MaxWorkers: 2, MaxRPS: 10})
 	defer loggerClose()
 	mw := respmiddleware.NewMetricsMiddleware(logger, collector)
 
