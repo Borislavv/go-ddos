@@ -19,25 +19,25 @@ type Config struct {
 	// LogHeaders is a slice of headers which must be caught on request error.
 	LogHeaders []string `arg:"-h,separate,env:CATCH_HEADERS"`
 
+	// PoolInitSize is httpclient pool init. size.
 	PoolInitSize int `arg:"-i,env:HTTP_CLIENT_POOL_INIT_SIZE"   default:"32"`
-	PoolMaxSize  int `arg:"-m,env:HTTP_CLIENT_POOL_MAX_SIZE"    default:"10240"`
+	// PoolMaxSize is httpclient pool max size.
+	PoolMaxSize int `arg:"-m,env:HTTP_CLIENT_POOL_MAX_SIZE"    default:"10240"`
 
+	// ReqSenderSpawnInterval is using for spawn_by_interval strategy.
 	ReqSenderSpawnInterval string `arg:"-i,env:SPAWN_REQ_SENDER_INTERVAL" default:"1m"`
-
 	// VoteForSpawnReqSenderStrategy tells which approach will be used for spawn a new worker for send requests.
 	// Options:
 	// 	all 		 - means that all voters must vote for spawn a new worker.
 	// 	many 		 - means that many voter must vote for spawn a new worker.
 	// 	at_least_one - means that at least one voter must vote for spawn a new worker.
 	VoteForSpawnReqSenderStrategy string `arg:"env:SPAWN_REQ_SENDER_STRATEGY" default:"at_least_one"`
-
 	// VoteForCloseReqSenderStrategy tells which approach will be used for spawn a new worker for send requests.
 	// Options:
 	// 	all 		 - means that all voters must vote for close a worker.
 	// 	many 		 - means that many voter must vote for close a worker.
 	// 	at_least_one - means that at least one voter must vote for close a worker.
 	VoteForCloseReqSenderStrategy string `arg:"env:CLOSE_REQ_SENDER_STRATEGY" default:"at_least_one"`
-
 	// ReqSenderSpawnVoters tells which voters must be used for vote
 	//	for spawn a new worker for send requests (allowed any combinations).
 	//
@@ -50,7 +50,6 @@ type Config struct {
 	//		If the TargetAvgDuration is under the current average requests duration, the workers will be spawning.
 	// 	spawn_by_interval	 	- for this case will be used ReqSenderSpawnInterval value.
 	ReqSenderSpawnVoters []string `arg:"separate,env:REQ_SENDER_SPAWN_VOTERS"`
-
 	// ReqSenderCloseVoters tells which voters must be used for vote
 	//	for close a worker (allowed any combinations).
 	//
