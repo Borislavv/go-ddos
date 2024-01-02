@@ -65,7 +65,7 @@ func main() {
 	dy := display.New(ctx, lg, rr)
 	sr := sender.NewHttp(cfg, lg, pl, cl)
 	mg := workers.NewManagerService(ctx, sr, lg, cl)
-	bl := workers.NewBalancer(ctx, cfg, cl)
+	bl := workers.NewBalancerService(ctx, cfg, cl)
 	fl := ddosservice.New(ctx, cfg, lg, bl, cl, mg)
 
 	wg := &sync.WaitGroup{}
