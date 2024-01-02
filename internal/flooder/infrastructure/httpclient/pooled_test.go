@@ -30,10 +30,10 @@ func TestPooled_Do(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	client, clientCancel := NewPool(ctx, cfg, func() *http.Client {
+	client := NewPool(ctx, cfg, func() *http.Client {
 		return &http.Client{Timeout: time.Minute}
 	})
-	defer clientCancel()
+	defer func() { _ = client.Close() }()
 
 	req, err := http.NewRequest("GET", server.URL, nil)
 	if err != nil {
@@ -73,10 +73,10 @@ func TestPooled_Use(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client, clientCancel := NewPool(context.Background(), cfg, func() *http.Client {
+	client := NewPool(context.Background(), cfg, func() *http.Client {
 		return &http.Client{Timeout: time.Minute}
 	})
-	defer clientCancel()
+	defer func() { _ = client.Close() }()
 
 	type Counter struct {
 		Responses int
