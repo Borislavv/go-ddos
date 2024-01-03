@@ -5,7 +5,7 @@ import (
 	"ddos/config"
 	ddosservice "ddos/internal/ddos/domain/service"
 	reqsender "ddos/internal/ddos/domain/service/balancer/req"
-	"ddos/internal/ddos/domain/service/manager/req"
+	"ddos/internal/ddos/domain/service/manager/ddosmanagerservice"
 	"ddos/internal/ddos/domain/service/sender"
 	"ddos/internal/ddos/infrastructure/httpclient"
 	httpclientconfig "ddos/internal/ddos/infrastructure/httpclient/config"
@@ -49,30 +49,32 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 
+	lg := logservice.NewAsync(ctx, cfg)
+	lwg := &sync.WaitGroup{}
+	lwg.Add(1)
+	defer lwg.Wait()
+	go lg.Run(lwg)
+	defer func() { _ = lg.Close() }()
+
 	cr := func() *http.Client { return &http.Client{Timeout: time.Minute} }
 	pl := httpclient.NewPool(ctx, poolCfg, cr)
 	defer func() { _ = pl.Close() }()
 
-	lg := logservice.NewAsync(ctx, cfg)
-	defer func() { _ = lg.Close() }()
+	cl := statservice.NewCollectorService(ctx, lg, pl, duration, cfg.Stages)
+	rr := displayservice.NewRendererService(ctx, lg, exitCh)
+	st := stat.New(ctx, cfg, lg, rr, cl)
+	dy := display.New(ctx, lg, rr)
+	sr := sender.NewSender(cfg, lg, pl, cl)
+	mg := ddosmanagerservice.NewManager(ctx, sr, lg, cl)
+	bl := reqsender.NewBalancer(ctx, cfg, cl)
+	fl := ddosservice.NewFlooder(ctx, cfg, lg, bl, cl, mg)
 
 	wg := &sync.WaitGroup{}
+	wg.Add(4)
 	defer wg.Wait()
-
-	cl := statservice.NewCollector(ctx, pl, duration, cfg.Stages)
-	rr := displayservice.NewRenderer(ctx, cfg, lg, exitCh)
-	st := stat.New(ctx, cfg, lg, rr, cl)
-	dy := display.New(ctx, rr)
-	sr := sender.NewSender(cfg, lg, pl, cl)
-	mg := req.NewManager(ctx, sr, cl)
-	bl := reqsender.NewBalancer(ctx, cfg, cl)
-	fl := ddosservice.NewFlooder(ctx, cfg, mg, lg, bl, cl)
-
-	wg.Add(5)
-	go lg.Run(wg)
 	go cl.Run(wg)
-	go st.Run(wg)
 	go dy.Run(wg)
+	go st.Run(wg)
 	go fl.Run(wg)
 
 	<-exitCh
