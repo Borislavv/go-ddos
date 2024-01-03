@@ -36,37 +36,37 @@ func initCfg() (*config.Config, *httpclientconfig.Config) {
 }
 
 func main() {
-	mainCfg, poolCfg := initCfg()
+	cfg, poolCfg := initCfg()
 
 	exitCh := make(chan os.Signal, 1)
 	defer close(exitCh)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 
-	duration, err := time.ParseDuration(mainCfg.Duration)
+	duration, err := time.ParseDuration(cfg.Duration)
 	if err != nil {
 		panic(err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 
-	lg, loggerCls := logservice.NewAsync(ctx, mainCfg)
-	defer loggerCls()
-
 	creator := func() *http.Client { return &http.Client{Timeout: time.Minute} }
-	pool, poolCls := httpclient.NewPool(ctx, poolCfg, creator)
-	defer poolCls()
+	pool := httpclient.NewPool(ctx, poolCfg, creator)
+	defer func() { _ = pool.Close() }()
+
+	lg := logservice.NewAsync(ctx, cfg)
+	defer func() { _ = lg.Close() }()
 
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 
-	cl := statservice.NewCollector(ctx, pool, duration, mainCfg.Stages)
-	rr := displayservice.NewRenderer(ctx, mainCfg, exitCh)
-	st := stat.New(ctx, mainCfg, rr, cl)
+	cl := statservice.NewCollector(ctx, pool, duration, cfg.Stages)
+	rr := displayservice.NewRenderer(ctx, cfg, lg, exitCh)
+	st := stat.New(ctx, cfg, lg, rr, cl)
 	dy := display.New(ctx, rr)
-	sr := sender.NewSender(mainCfg, lg, pool, cl)
+	sr := sender.NewSender(cfg, lg, pool, cl)
 	mg := req.NewManager(ctx, sr, cl)
-	bl := reqsender.NewBalancer(ctx, mainCfg, cl)
-	fl := ddosservice.NewFlooder(ctx, mainCfg, mg, lg, bl, cl)
+	bl := reqsender.NewBalancer(ctx, cfg, cl)
+	fl := ddosservice.NewFlooder(ctx, cfg, mg, lg, bl, cl)
 
 	wg.Add(5)
 	go lg.Run(wg)
