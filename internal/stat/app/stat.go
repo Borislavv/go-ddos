@@ -44,7 +44,7 @@ func (s *App) Run(mwg *sync.WaitGroup) {
 	summaryTableCh := s.renderer.SummaryTableCh()
 
 	defer func() {
-		s.logger.Println("stat.App.Run() is closed")
+		s.logger.Println("stat.App.Run(): is closed")
 		_ = s.renderer.Close()
 		mwg.Done()
 	}()
