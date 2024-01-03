@@ -27,7 +27,7 @@ func New(
 
 func (d *App) Run(mwg *sync.WaitGroup) {
 	defer func() {
-		d.logger.Println("display.App.Run() is closed")
+		d.logger.Println("display.App.Run(): is closed")
 		mwg.Done()
 	}()
 
