@@ -17,8 +17,7 @@ type ManagerService struct {
 	logger    logservice.Logger
 	collector statservice.Collector
 
-	closeOneCh chan struct{}
-	closeAllCh chan struct{}
+	closeCh chan struct{}
 }
 
 func NewManagerService(
@@ -28,16 +27,15 @@ func NewManagerService(
 	collector statservice.Collector,
 ) *ManagerService {
 	return &ManagerService{
-		ctx:        ctx,
-		sender:     sender,
-		logger:     logger,
-		collector:  collector,
-		closeOneCh: make(chan struct{}, 1),
-		closeAllCh: make(chan struct{}),
+		ctx:       ctx,
+		sender:    sender,
+		logger:    logger,
+		collector: collector,
+		closeCh:   make(chan struct{}, 1),
 	}
 }
 
-func (m *ManagerService) Spawn(wg *sync.WaitGroup, sendTicker *time.Ticker) {
+func (m *ManagerService) Spawn(ctx context.Context, wg *sync.WaitGroup, sendTicker *time.Ticker) {
 	wg.Add(1)
 	go func() {
 		defer func() {
@@ -47,23 +45,28 @@ func (m *ManagerService) Spawn(wg *sync.WaitGroup, sendTicker *time.Ticker) {
 		m.collector.AddWorker()
 		for {
 			select {
-			case <-m.closeOneCh:
+			case <-ctx.Done():
 				return
-			case <-m.closeAllCh:
+			case <-m.closeCh:
 				return
 			case <-sendTicker.C:
-				// sending a request, with a nil request struct specified
-				// due to all useful work will be done in the middlewares
-				m.sender.Send(new(http.Request))
+				// the request will be enriched in middleware
+				m.sender.Send(new(http.Request).WithContext(ctx))
 			}
 		}
 	}()
 }
 
-func (m *ManagerService) Close() {
-	m.closeOneCh <- struct{}{}
+func (m *ManagerService) CloseOne() {
+	select {
+	case m.closeCh <- struct{}{}:
+	default:
+	}
 }
 
-func (m *ManagerService) CloseAll() {
-	close(m.closeAllCh)
+func (m *ManagerService) CloseAll(cancel context.CancelFunc, wg *sync.WaitGroup) {
+	cancel()
+	wg.Wait()
+	close(m.closeCh)
+	m.logger.Println("workers.Manager.CloseAll(): all spawned workers are closed")
 }
