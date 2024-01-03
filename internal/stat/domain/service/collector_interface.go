@@ -11,7 +11,11 @@ type Collector interface {
 
 	Metric(stage int64) (metric *statmodel.Metrics, found bool)
 	Stages() int64
+
+	StartedAt() time.Time
 	SummaryDuration() time.Duration
+
+	RPS() int64
 	SummaryRPS() int64
 
 	AddWorker()
@@ -51,4 +55,17 @@ type Collector interface {
 	SetHttpClientPoolTotal()
 	HttpClientOutOfPool() int64
 	SetHttpClientOutOfPool()
+
+	LastSpawnByInterval() time.Time
+	SetLastSpawnByInterval()
+
+	LastSpawnByAvgDuration() time.Time
+	SetLastSpawnByAvgDuration()
+	LastCloseByAvgDuration() time.Time
+	SetLastCloseByAvgDuration()
+
+	LastSpawnByRPS() time.Time
+	SetLastSpawnByRPS()
+	LastCloseByRPS() time.Time
+	SetLastCloseByRPS()
 }
