@@ -8,12 +8,12 @@ import (
 
 type Display struct {
 	ctx      context.Context
-	renderer *displayservice.Renderer
+	renderer displayservice.Renderer
 }
 
 func New(
 	ctx context.Context,
-	renderer *displayservice.Renderer,
+	renderer displayservice.Renderer,
 ) *Display {
 	return &Display{
 		ctx:      ctx,
@@ -27,6 +27,6 @@ func (d *Display) Run(mwg *sync.WaitGroup) {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 	go d.renderer.Draw(wg)
-	go d.renderer.Close(wg)
+	go d.renderer.Listen(wg)
 	wg.Wait()
 }
