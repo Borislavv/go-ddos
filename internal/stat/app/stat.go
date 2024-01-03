@@ -5,6 +5,7 @@ import (
 	"ddos/config"
 	displaymodel "ddos/internal/display/domain/model"
 	displayservice "ddos/internal/display/domain/service"
+	logservice "ddos/internal/log/domain/service"
 	"ddos/internal/stat/domain/model"
 	statservice "ddos/internal/stat/domain/service"
 	"fmt"
@@ -15,8 +16,8 @@ import (
 
 type Stat struct {
 	ctx          context.Context
-	cfg          *config.Config
-	renderer     *displayservice.Renderer
+	logger       logservice.Logger
+	renderer     displayservice.Renderer
 	collector    statservice.Collector
 	renderedRows map[int64][]string
 }
@@ -24,12 +25,13 @@ type Stat struct {
 func New(
 	ctx context.Context,
 	cfg *config.Config,
-	renderer *displayservice.Renderer,
+	logger logservice.Logger,
+	renderer displayservice.Renderer,
 	collector statservice.Collector,
 ) *Stat {
 	return &Stat{
 		ctx:          ctx,
-		cfg:          cfg,
+		logger:       logger,
 		renderer:     renderer,
 		collector:    collector,
 		renderedRows: make(map[int64][]string, cfg.Stages),
@@ -37,29 +39,38 @@ func New(
 }
 
 func (s *Stat) Run(mwg *sync.WaitGroup) {
-	defer mwg.Done()
+	tableCh := s.renderer.TableCh()
+	summaryTableCh := s.renderer.SummaryTableCh()
 
-	fps := time.NewTicker(time.Millisecond * 75)
+	defer func() {
+		close(tableCh)
+		close(summaryTableCh)
+		mwg.Done()
+	}()
+
+	fps := time.NewTicker(time.Millisecond * 100)
 	defer fps.Stop()
 
 	for {
 		select {
 		case <-s.ctx.Done():
-			s.renderer.SendSummary(
-				&displaymodel.Table{
-					Header: s.buildHeader(),
-					Rows:   s.buildRows(),
-					Footer: s.buildSummaryRow(),
-				},
-			)
+			select {
+			case summaryTableCh <- &displaymodel.Table{
+				Header: s.buildHeader(),
+				Rows:   s.buildRows(),
+				Footer: s.buildSummaryRow(),
+			}:
+			default:
+			}
 			return
 		case <-fps.C:
-			s.renderer.SendData(
-				&displaymodel.Table{
-					Header: s.buildHeader(),
-					Rows:   s.buildRows(),
-				},
-			)
+			select {
+			case tableCh <- &displaymodel.Table{
+				Header: s.buildHeader(),
+				Rows:   s.buildRows(),
+			}:
+			default:
+			}
 		}
 	}
 }
