@@ -26,6 +26,18 @@ func initCfg() (*config.Config, *httpclientconfig.Config) {
 	cfg := &config.Config{}
 	arg.MustParse(cfg)
 
+	targetAvgSuccessRequestsDuration, err := time.ParseDuration(cfg.TargetAvgSuccessRequestsDuration)
+	if err != nil {
+		panic(err)
+	}
+	cfg.TargetAvgSuccessRequestsDurationValue = targetAvgSuccessRequestsDuration
+
+	reqSenderSpawnInterval, err := time.ParseDuration(cfg.SpawnInterval)
+	if err != nil {
+		panic(err)
+	}
+	cfg.SpawnIntervalValue = reqSenderSpawnInterval
+
 	poolCfg := &httpclientconfig.Config{
 		PoolInitSize: cfg.PoolInitSize,
 		PoolMaxSize:  cfg.PoolMaxSize,
@@ -65,7 +77,7 @@ func main() {
 	dy := display.New(ctx, lg, rr)
 	sr := sender.NewHttp(cfg, lg, pl, cl)
 	mg := workers.NewManagerService(ctx, sr, lg, cl)
-	bl := workers.NewBalancerService(ctx, cfg, cl)
+	bl := workers.NewBalancerService(ctx, cfg, lg, cl)
 	fl := ddosservice.New(ctx, cfg, lg, bl, cl, mg)
 
 	wg := &sync.WaitGroup{}
@@ -76,6 +88,10 @@ func main() {
 	go st.Run(wg)
 	go fl.Run(wg)
 
-	<-exitCh
+	select {
+	case <-exitCh:
+	case <-ctx.Done():
+	}
+	lg.Println("interrupting...")
 	cancel()
 }
