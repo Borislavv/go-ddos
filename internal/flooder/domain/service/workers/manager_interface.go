@@ -1,12 +1,13 @@
 package workers
 
 import (
+	"context"
 	"sync"
 	"time"
 )
 
 type Manager interface {
-	Spawn(wg *sync.WaitGroup, sendTicker *time.Ticker)
-	Close()
-	CloseAll()
+	Spawn(ctx context.Context, wg *sync.WaitGroup, sendTicker *time.Ticker)
+	CloseOne()
+	CloseAll(cancel context.CancelFunc, wg *sync.WaitGroup)
 }
