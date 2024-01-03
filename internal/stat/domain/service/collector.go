@@ -14,13 +14,22 @@ type CollectorService struct {
 	ctx context.Context
 	mu  *sync.RWMutex
 
+	// dependencies
 	logger     logservice.Logger
 	httpClient httpclient.Pooled
 
+	// internal
 	startedAt          time.Time
 	durPerPercentile   time.Duration
 	percentilesMetrics map[int64]*statmodel.Metrics
 	stages             int64
+
+	// timestamps
+	lastSpawnByInterval    time.Time
+	lastSpawnByAvgDuration time.Time
+	lastCloseByAvgDuration time.Time
+	lastSpawnByRPS         time.Time
+	lastCloseByRPS         time.Time
 }
 
 func NewCollectorService(
@@ -31,12 +40,15 @@ func NewCollectorService(
 	stages int64,
 ) *CollectorService {
 	c := &CollectorService{
-		ctx:              ctx,
-		logger:           logger,
-		startedAt:        time.Now(),
-		httpClient:       httpClient,
-		mu:               &sync.RWMutex{},
-		durPerPercentile: time.Duration(math.Ceil(float64(duration.Nanoseconds() / stages))),
+		ctx:                    ctx,
+		logger:                 logger,
+		startedAt:              time.Now(),
+		lastSpawnByInterval:    time.Now(),
+		lastSpawnByAvgDuration: time.Now(),
+		lastCloseByAvgDuration: time.Now(),
+		httpClient:             httpClient,
+		mu:                     &sync.RWMutex{},
+		durPerPercentile:       time.Duration(math.Ceil(float64(duration.Nanoseconds() / stages))),
 	}
 
 	if stages <= 0 {
@@ -52,7 +64,7 @@ func NewCollectorService(
 
 func (c *CollectorService) Run(wg *sync.WaitGroup) {
 	defer func() {
-		c.logger.Println("stat.CollectorService.Run() is closed")
+		c.logger.Println("stat.CollectorService.Run(): is closed")
 		wg.Done()
 	}()
 
@@ -70,6 +82,10 @@ func (c *CollectorService) Run(wg *sync.WaitGroup) {
 			c.SetHttpClientOutOfPool()
 		}
 	}
+}
+
+func (c *CollectorService) StartedAt() time.Time {
+	return c.startedAt
 }
 
 func (c *CollectorService) currentMetric() *statmodel.Metrics {
@@ -109,6 +125,10 @@ func (c *CollectorService) SummaryDuration() time.Duration {
 
 func (c *CollectorService) setRPS() {
 	c.currentMetric().SetRPS()
+}
+
+func (c *CollectorService) RPS() int64 {
+	return c.currentMetric().RPS()
 }
 
 func (c *CollectorService) SummaryRPS() int64 {
@@ -310,4 +330,44 @@ func (c *CollectorService) HttpClientOutOfPool() int64 {
 
 func (c *CollectorService) SetHttpClientOutOfPool() {
 	c.currentMetric().SetHttpClientOutOfPool(c.httpClient.OutOfPool())
+}
+
+func (c *CollectorService) LastSpawnByInterval() time.Time {
+	return c.lastSpawnByInterval
+}
+
+func (c *CollectorService) SetLastSpawnByInterval() {
+	c.lastSpawnByInterval = time.Now()
+}
+
+func (c *CollectorService) LastSpawnByAvgDuration() time.Time {
+	return c.lastSpawnByAvgDuration
+}
+
+func (c *CollectorService) SetLastSpawnByAvgDuration() {
+	c.lastSpawnByAvgDuration = time.Now()
+}
+
+func (c *CollectorService) LastCloseByAvgDuration() time.Time {
+	return c.lastCloseByAvgDuration
+}
+
+func (c *CollectorService) SetLastCloseByAvgDuration() {
+	c.lastCloseByAvgDuration = time.Now()
+}
+
+func (c *CollectorService) LastSpawnByRPS() time.Time {
+	return c.lastSpawnByRPS
+}
+
+func (c *CollectorService) SetLastSpawnByRPS() {
+	c.lastSpawnByRPS = time.Now()
+}
+
+func (c *CollectorService) LastCloseByRPS() time.Time {
+	return c.lastCloseByRPS
+}
+
+func (c *CollectorService) SetLastCloseByRPS() {
+	c.lastCloseByRPS = time.Now()
 }
