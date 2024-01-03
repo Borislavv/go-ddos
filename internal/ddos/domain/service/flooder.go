@@ -4,7 +4,7 @@ import (
 	"context"
 	ddos "ddos/config"
 	reqsender "ddos/internal/ddos/domain/service/balancer/req"
-	"ddos/internal/ddos/domain/service/manager/req"
+	"ddos/internal/ddos/domain/service/manager/ddosmanagerservice"
 	logservice "ddos/internal/log/domain/service"
 	statservice "ddos/internal/stat/domain/service"
 	"runtime"
@@ -13,23 +13,22 @@ import (
 )
 
 type Flooder struct {
-	mu  *sync.RWMutex
-	ctx context.Context
-
+	mu          *sync.RWMutex
+	ctx         context.Context
 	cfg         *ddos.Config
-	manager     *req.Manager
 	logger      logservice.Logger
-	collector   statservice.Collector
 	reqBalancer *reqsender.Balancer
+	collector   statservice.Collector
+	manager     *ddosmanagerservice.Manager
 }
 
 func NewFlooder(
 	ctx context.Context,
 	cfg *ddos.Config,
-	manager *req.Manager,
 	logger logservice.Logger,
 	reqBalancer *reqsender.Balancer,
 	collector statservice.Collector,
+	manager *ddosmanagerservice.Manager,
 ) *Flooder {
 	return &Flooder{
 		mu:          &sync.RWMutex{},
@@ -43,10 +42,16 @@ func NewFlooder(
 }
 
 func (f *Flooder) Run(mwg *sync.WaitGroup) {
-	defer mwg.Done()
+	defer func() {
+		f.logger.Println("ddos.Flooder.Run() is closed")
+		mwg.Done()
+	}()
 
 	wg := &sync.WaitGroup{}
-	defer wg.Wait()
+	defer func() {
+		wg.Wait()
+		f.logger.Println("ddos.Flooder.Workers all spawned are closed")
+	}()
 
 	balancerTicker := time.NewTicker(time.Millisecond * 100)
 	defer balancerTicker.Stop()
