@@ -38,7 +38,7 @@ func BenchmarkPooled_Do(b *testing.B) {
 	})
 	defer cancelPool()
 
-	collector := statservice.NewCollector(ctx, client, time.Minute*5, 1)
+	collector := statservice.NewCollectorService(ctx, client, time.Minute*5, 1)
 
 	logger, loggerClose := logservice.NewAsync(ctx, &config.Config{MaxWorkers: 2, MaxRPS: 10})
 	defer loggerClose()
