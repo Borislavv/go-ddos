@@ -20,7 +20,7 @@ type Pool struct {
 	conns   int64
 }
 
-func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Client) (*Pool, CancelFunc) {
+func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Client) *Pool {
 	if cfg.PoolInitSize > cfg.PoolMaxSize {
 		cfg.PoolInitSize = cfg.PoolMaxSize
 	}
@@ -54,7 +54,7 @@ func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Clien
 		},
 	)
 
-	return p, p.cls
+	return p
 }
 
 func (p *Pool) Do(req *http.Request) (*http.Response, error) {
@@ -100,7 +100,8 @@ func (p *Pool) put(c *http.Client) {
 	}
 }
 
-func (p *Pool) cls() {
+func (p *Pool) Close() error {
 	p.cancel()
 	close(p.pool)
+	return nil
 }
