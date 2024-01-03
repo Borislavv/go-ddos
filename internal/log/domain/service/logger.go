@@ -20,7 +20,7 @@ type Async struct {
 }
 
 func NewAsync(ctx context.Context, cfg *config.Config) *Async {
-	buff := int64(math.Ceil(float64(cfg.MaxRPS) / float64(cfg.InitWorkersNum)))
+	buff := int64(math.Ceil(float64(cfg.MaxRPS) / float64(cfg.MinWorkers)))
 	if buff <= 0 {
 		buff = 1
 	}
@@ -54,7 +54,7 @@ func (l *Async) Println(msg string) {
 	l.ch <- msg
 }
 
-func (l *Async) Printf(msg string, args ...any) {
+func (l *Async) Printfln(msg string, args ...any) {
 	l.Println(fmt.Sprintf(msg, args...))
 }
 
