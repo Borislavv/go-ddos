@@ -22,6 +22,10 @@ func NewByInterval(cfg *config.Config, collector statservice.Collector) *ByInter
 }
 
 func (s *ByInterval) Vote() (isFor bool, weight enum.Weight) {
+	if time.Since(s.collector.LastSpawnByInterval()) < s.cfg.SpawnIntervalValue {
+		return false, enum.Check
+	}
+
 	defer s.collector.SetLastSpawnByInterval()
 	return time.Since(s.collector.LastSpawnByInterval()) > s.cfg.SpawnIntervalValue &&
 		s.collector.Workers() < s.cfg.MaxWorkers, enum.TotallyFor
