@@ -17,7 +17,7 @@ type Async struct {
 	fd  *os.File
 }
 
-func NewAsync(ctx context.Context, cfg *config.Config) (*Async, CloseFunc) {
+func NewAsync(ctx context.Context, cfg *config.Config) *Async {
 	l := &Async{
 		ctx: ctx,
 		ch:  make(chan string, cfg.MaxRPS*int(cfg.MaxWorkers)),
@@ -32,7 +32,7 @@ func NewAsync(ctx context.Context, cfg *config.Config) (*Async, CloseFunc) {
 		log.SetOutput(f)
 	}
 
-	return l, l.cls
+	return l
 }
 
 func (l *Async) Run(wg *sync.WaitGroup) {
@@ -41,6 +41,12 @@ func (l *Async) Run(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-l.ctx.Done():
+			go func() {
+				for range l.ch {
+					// clean remain messages into the chan
+					// due to non-block other goroutines
+				}
+			}()
 			return
 		case msg := <-l.ch:
 			log.Println(msg)
@@ -49,14 +55,24 @@ func (l *Async) Run(wg *sync.WaitGroup) {
 }
 
 func (l *Async) Println(msg string) {
-	l.ch <- msg
+	select {
+	case l.ch <- msg:
+	case <-l.ctx.Done():
+	default:
+		fmt.Println(msg)
+	}
 }
 
 func (l *Async) Printf(msg string, args ...any) {
-	l.ch <- fmt.Sprintf(msg, args...)
+	l.Println(fmt.Sprintf(msg, args...))
 }
 
-func (l *Async) cls() {
+func (l *Async) Close() error {
+	if l.fd != nil {
+		if err := l.fd.Close(); err != nil {
+			return err
+		}
+	}
 	close(l.ch)
-	_ = l.fd.Close()
+	return nil
 }
