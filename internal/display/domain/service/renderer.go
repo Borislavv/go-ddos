@@ -44,7 +44,7 @@ func (r *RendererService) SummaryTableCh() chan<- *displaymodel.Table {
 
 func (r *RendererService) Listen(wg *sync.WaitGroup, cancel context.CancelFunc) {
 	defer func() {
-		r.logger.Println("display.RendererService.Listen() is closed")
+		r.logger.Println("display.RendererService.Listen(): is closed")
 		wg.Done()
 	}()
 
@@ -67,7 +67,7 @@ func (r *RendererService) Listen(wg *sync.WaitGroup, cancel context.CancelFunc) 
 func (r *RendererService) Draw(wg *sync.WaitGroup, ctx context.Context) {
 	defer func() {
 		termbox.Interrupt()
-		r.logger.Println("display.RendererService.Draw() is closed")
+		r.logger.Println("display.RendererService.Draw(): is closed")
 		wg.Done()
 	}()
 
@@ -83,9 +83,9 @@ func (r *RendererService) Draw(wg *sync.WaitGroup, ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			termbox.Close()
-
 			r.exitCh <- os.Interrupt
+			
+			termbox.Close()
 
 			data, ok := <-r.summaryTableCh
 			if !ok {
