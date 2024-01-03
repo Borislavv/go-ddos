@@ -33,7 +33,7 @@ func BenchmarkPooled_Do(b *testing.B) {
 		PoolMaxSize:  1024,
 	}
 
-	logger := logservice.NewAsync(ctx, &config.Config{InitWorkersNum: 2, MaxRPS: 10})
+	logger := logservice.NewAsync(ctx, &config.Config{MinWorkers: 2, MaxRPS: 10})
 	defer func() { _ = logger.Close() }()
 
 	client := NewPool(ctx, cfg, func() *http.Client {
