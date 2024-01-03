@@ -6,7 +6,6 @@ import (
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -42,34 +41,29 @@ func New(
 
 func (f *App) Run(mwg *sync.WaitGroup) {
 	defer func() {
-		f.logger.Println("flooder.App.Run() is closed")
+		f.logger.Println("flooder.App.Run(): is closed")
 		mwg.Done()
-	}()
-
-	wg := &sync.WaitGroup{}
-	defer func() {
-		wg.Wait()
-		f.logger.Println("flooder.App.Workers all spawned are closed")
 	}()
 
 	balancerTicker := time.NewTicker(time.Millisecond * 100)
 	defer balancerTicker.Stop()
 
-	reqSendTicker := time.NewTicker(time.Second / time.Duration(float64(f.cfg.MaxRPS)*1.11))
+	reqSendTicker := time.NewTicker(time.Second / time.Duration(float64(f.cfg.MaxRPS)*(1+f.cfg.ToleranceCoefficient)))
 	defer reqSendTicker.Stop()
+
+	wg := &sync.WaitGroup{}
+	ctx, cancel := context.WithCancel(f.ctx)
 
 	for {
 		select {
 		case <-f.ctx.Done():
-			f.manager.CloseAll()
+			f.manager.CloseAll(cancel, wg)
 			return
 		case <-balancerTicker.C:
 			if f.reqBalancer.IsMustBeSpawned() {
-				f.manager.Spawn(wg, reqSendTicker)
+				f.manager.Spawn(ctx, wg, reqSendTicker)
 			} else if f.reqBalancer.IsMustBeClosed() {
-				f.manager.Close()
-			} else {
-				runtime.Gosched()
+				f.manager.CloseOne()
 			}
 		}
 	}
