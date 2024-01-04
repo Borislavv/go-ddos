@@ -1,6 +1,7 @@
 package workers
 
+import "github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
+
 type Balancer interface {
-	IsMustBeSpawned() bool
-	IsMustBeClosed() bool
+	CurrentAction() enum.Action
 }
