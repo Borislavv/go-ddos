@@ -18,6 +18,10 @@ func NewByMaxWorkers(cfg *config.Config, collector statservice.Collector) *ByMax
 	}
 }
 
-func (s *ByMaxWorkers) Vote() (isFor bool, weight enum.Weight) {
-	return s.collector.Workers() > s.cfg.MaxWorkers, enum.TotallyFor
+func (s *ByMaxWorkers) Vote() (weight enum.Weight) {
+	if s.collector.Workers() <= s.cfg.MaxWorkers {
+		return enum.Check
+	}
+
+	return enum.AbsolutelyFor
 }
