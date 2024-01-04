@@ -35,7 +35,7 @@ func NewManagerService(
 	}
 }
 
-func (m *ManagerService) Spawn(ctx context.Context, wg *sync.WaitGroup, sendTicker *time.Ticker) {
+func (m *ManagerService) SpawnOne(ctx context.Context, wg *sync.WaitGroup, sendTicker *time.Ticker) {
 	wg.Add(1)
 	go func() {
 		defer func() {
