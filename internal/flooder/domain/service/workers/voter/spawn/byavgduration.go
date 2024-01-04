@@ -21,13 +21,21 @@ func NewByAvgDuration(cfg *config.Config, collector statservice.Collector) *ByAv
 	}
 }
 
-func (s *ByAvgDuration) Vote() (isFor bool, weight enum.Weight) {
+func (s *ByAvgDuration) Vote() (weight enum.Weight) {
 	if time.Since(s.collector.LastSpawnByAvgDuration()) < s.cfg.SpawnIntervalValue {
-		return false, enum.Check
+		return enum.Check
 	}
 
 	defer s.collector.SetLastSpawnByAvgDuration()
-	return s.collector.AvgSuccessRequestsDuration() <
-		time.Duration(float64(s.cfg.TargetAvgSuccessRequestsDurationValue.Nanoseconds())*(1-s.cfg.ToleranceCoefficient)) &&
-		s.collector.Workers() < s.cfg.MaxWorkers, enum.SureFor
+
+	if s.collector.AvgSuccessRequestsDuration() <
+		time.Duration(float64(s.cfg.TargetAvgSuccessRequestsDurationValue.Nanoseconds())*(1-s.cfg.ToleranceCoefficient)) {
+		if s.collector.Workers() < s.cfg.MaxWorkers {
+			return enum.AbsolutelyFor
+		} else {
+			return enum.SureFor
+		}
+	}
+
+	return enum.Check
 }
