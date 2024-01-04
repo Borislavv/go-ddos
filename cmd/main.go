@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"ddos/config"
-	ddosservice "ddos/internal/ddos/domain/service"
-	reqsender "ddos/internal/ddos/domain/service/balancer/req"
-	"ddos/internal/ddos/domain/service/manager/ddosmanagerservice"
-	"ddos/internal/ddos/domain/service/sender"
-	"ddos/internal/ddos/infrastructure/httpclient"
-	httpclientconfig "ddos/internal/ddos/infrastructure/httpclient/config"
 	display "ddos/internal/display/app"
 	displayservice "ddos/internal/display/domain/service"
+	ddosservice "ddos/internal/flooder/app"
+	"ddos/internal/flooder/domain/service/sender"
+	"ddos/internal/flooder/domain/service/workers"
+	"ddos/internal/flooder/infrastructure/httpclient"
+	httpclientconfig "ddos/internal/flooder/infrastructure/httpclient/config"
 	logservice "ddos/internal/log/domain/service"
 	stat "ddos/internal/stat/app"
 	statservice "ddos/internal/stat/domain/service"
@@ -64,10 +63,10 @@ func main() {
 	rr := displayservice.NewRendererService(ctx, lg, exitCh)
 	st := stat.New(ctx, cfg, lg, rr, cl)
 	dy := display.New(ctx, lg, rr)
-	sr := sender.NewSender(cfg, lg, pl, cl)
-	mg := ddosmanagerservice.NewManager(ctx, sr, lg, cl)
-	bl := reqsender.NewBalancer(ctx, cfg, cl)
-	fl := ddosservice.NewFlooder(ctx, cfg, lg, bl, cl, mg)
+	sr := sender.NewHttp(cfg, lg, pl, cl)
+	mg := workers.NewManagerService(ctx, sr, lg, cl)
+	bl := workers.NewBalancer(ctx, cfg, cl)
+	fl := ddosservice.New(ctx, cfg, lg, bl, cl, mg)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(4)
