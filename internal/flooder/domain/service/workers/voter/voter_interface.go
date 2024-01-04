@@ -5,5 +5,5 @@ import (
 )
 
 type Voter interface {
-	Vote() (isFor bool, weight enum.Weight)
+	Vote() (weight enum.Weight)
 }
