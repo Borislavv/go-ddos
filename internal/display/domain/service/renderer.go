@@ -2,7 +2,6 @@ package displayservice
 
 import (
 	"context"
-	"ddos/config"
 	displaymodel "ddos/internal/display/domain/model"
 	logservice "ddos/internal/log/domain/service"
 	"github.com/nsf/termbox-go"
@@ -18,12 +17,10 @@ type RendererService struct {
 	summaryTableCh chan *displaymodel.Table
 	exitCh         chan<- os.Signal
 	stopCh         chan struct{}
-	isClosed       int64
 }
 
-func NewRenderer(
+func NewRendererService(
 	ctx context.Context,
-	cfg *config.Config,
 	logger logservice.Logger,
 	exitCh chan<- os.Signal,
 ) *RendererService {
@@ -31,7 +28,7 @@ func NewRenderer(
 		ctx:            ctx,
 		exitCh:         exitCh,
 		logger:         logger,
-		tableCh:        make(chan *displaymodel.Table, cfg.MaxWorkers),
+		tableCh:        make(chan *displaymodel.Table, 1),
 		summaryTableCh: make(chan *displaymodel.Table, 1),
 		stopCh:         make(chan struct{}, 1),
 	}
@@ -45,33 +42,36 @@ func (r *RendererService) SummaryTableCh() chan<- *displaymodel.Table {
 	return r.summaryTableCh
 }
 
-func (r *RendererService) Listen(wg *sync.WaitGroup) {
+func (r *RendererService) Listen(wg *sync.WaitGroup, cancel context.CancelFunc) {
 	defer func() {
-		close(r.stopCh)
+		r.logger.Println("display.RendererService.Listen() is closed")
 		wg.Done()
 	}()
 
 	for {
-		select {
-		case <-r.ctx.Done():
-			return
-		default:
-			switch event := termbox.PollEvent(); event.Type {
-			case termbox.EventKey:
-				if event.Key == termbox.KeyCtrlC || event.Key == termbox.KeyCtrlZ {
-					return
-				}
-			case termbox.EventError:
-				r.logger.Println(event.Err.Error())
+		switch event := termbox.PollEvent(); event.Type {
+		case termbox.EventKey:
+			if event.Key == termbox.KeyCtrlC || event.Key == termbox.KeyCtrlZ {
+				cancel()
+				continue
 			}
+		case termbox.EventError:
+			r.logger.Println("termbox receive error Event: " + event.Err.Error())
+			continue
+		case termbox.EventInterrupt:
+			return
 		}
 	}
 }
 
-func (r *RendererService) Draw(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (r *RendererService) Draw(wg *sync.WaitGroup, ctx context.Context) {
+	defer func() {
+		termbox.Interrupt()
+		r.logger.Println("display.RendererService.Draw() is closed")
+		wg.Done()
+	}()
 
-	if err := termbox.Init(); err != nil {
+	if err := termbox.Init(); !termbox.IsInit && err != nil {
 		r.logger.Println(err.Error())
 		return
 	}
@@ -82,12 +82,15 @@ func (r *RendererService) Draw(wg *sync.WaitGroup) {
 
 	for {
 		select {
-		case <-r.stopCh:
+		case <-ctx.Done():
 			termbox.Close()
 
 			r.exitCh <- os.Interrupt
 
-			data := <-r.summaryTableCh
+			data, ok := <-r.summaryTableCh
+			if !ok {
+				return
+			}
 
 			// reinitialized the table as the summary
 			table = tablewriter.NewWriter(os.Stdout)
@@ -98,9 +101,12 @@ func (r *RendererService) Draw(wg *sync.WaitGroup) {
 				r.logger.Println(err.Error())
 				continue
 			}
-
 			return
-		case data := <-r.tableCh:
+		case data, isOpen := <-r.tableCh:
+			if !isOpen {
+				continue
+			}
+
 			// clear a terminal window
 			if err := termbox.Clear(termbox.ColorDefault, termbox.ColorDefault); err != nil {
 				r.logger.Println(err.Error())
