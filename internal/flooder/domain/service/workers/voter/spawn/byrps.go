@@ -21,12 +21,20 @@ func NewByRPS(cfg *config.Config, collector statservice.Collector) *ByRPS {
 	}
 }
 
-func (s *ByRPS) Vote() (isFor bool, weight enum.Weight) {
+func (s *ByRPS) Vote() (weight enum.Weight) {
 	if time.Since(s.collector.LastSpawnByRPS()) < s.cfg.SpawnIntervalValue {
-		return false, enum.Check
+		return enum.Check
 	}
 
 	defer s.collector.SetLastSpawnByRPS()
-	return s.collector.RPS() < int64(float64(s.cfg.TargetRPS)*(1-s.cfg.ToleranceCoefficient)) &&
-		s.collector.Workers() < s.cfg.MaxWorkers, enum.For
+
+	if s.collector.RPS() < int64(float64(s.cfg.TargetRPS)*(1-s.cfg.ToleranceCoefficient)) {
+		if s.collector.Workers() < s.cfg.MaxWorkers {
+			return enum.SureFor
+		} else {
+			return enum.For
+		}
+	}
+
+	return enum.Check
 }
