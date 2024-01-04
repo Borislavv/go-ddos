@@ -1,10 +1,9 @@
-package app
+package flooder
 
 import (
 	"context"
 	ddos "ddos/config"
-	reqsender "ddos/internal/ddos/domain/service/balancer/req"
-	"ddos/internal/ddos/domain/service/manager/ddosmanagerservice"
+	"ddos/internal/flooder/domain/service/workers"
 	logservice "ddos/internal/log/domain/service"
 	statservice "ddos/internal/stat/domain/service"
 	"runtime"
@@ -12,25 +11,25 @@ import (
 	"time"
 )
 
-type FlooderService struct {
+type App struct {
 	mu          *sync.RWMutex
 	ctx         context.Context
 	cfg         *ddos.Config
 	logger      logservice.Logger
-	reqBalancer *reqsender.Balancer
+	reqBalancer *workers.Balancer
 	collector   statservice.Collector
-	manager     *ddosmanagerservice.Manager
+	manager     *workers.ManagerService
 }
 
-func NewFlooderService(
+func New(
 	ctx context.Context,
 	cfg *ddos.Config,
 	logger logservice.Logger,
-	reqBalancer *reqsender.Balancer,
+	reqBalancer *workers.Balancer,
 	collector statservice.Collector,
-	manager *ddosmanagerservice.Manager,
-) *FlooderService {
-	return &FlooderService{
+	manager *workers.ManagerService,
+) *App {
+	return &App{
 		mu:          &sync.RWMutex{},
 		ctx:         ctx,
 		cfg:         cfg,
@@ -41,16 +40,16 @@ func NewFlooderService(
 	}
 }
 
-func (f *FlooderService) Run(mwg *sync.WaitGroup) {
+func (f *App) Run(mwg *sync.WaitGroup) {
 	defer func() {
-		f.logger.Println("ddos.FlooderService.Run() is closed")
+		f.logger.Println("flooder.App.Run() is closed")
 		mwg.Done()
 	}()
 
 	wg := &sync.WaitGroup{}
 	defer func() {
 		wg.Wait()
-		f.logger.Println("ddos.FlooderService.Workers all spawned are closed")
+		f.logger.Println("flooder.App.Workers all spawned are closed")
 	}()
 
 	balancerTicker := time.NewTicker(time.Millisecond * 100)
@@ -66,7 +65,7 @@ func (f *FlooderService) Run(mwg *sync.WaitGroup) {
 			return
 		case <-balancerTicker.C:
 			if f.reqBalancer.IsMustBeSpawned() {
-				f.manager.Spawn(reqSendTicker, wg)
+				f.manager.Spawn(wg, reqSendTicker)
 			} else if f.reqBalancer.IsMustBeClosed() {
 				f.manager.Close()
 			} else {
