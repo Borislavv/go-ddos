@@ -6,25 +6,36 @@ import (
 )
 
 type ManyVoters struct {
-	voters []voter.Voter
+	spawnVoters []voter.Voter
+	closeVoters []voter.Voter
 }
 
-func NewManyVoters(voters []voter.Voter) *ManyVoters {
-	return &ManyVoters{voters: voters}
-}
-
-func (s *ManyVoters) IsFor() bool {
-	var forNumber int
-	var prosWeight enum.Weight
-	var consWeight enum.Weight
-	for _, v := range s.voters {
-		isFor, weight := v.Vote()
-		if isFor {
-			forNumber++
-			prosWeight += weight
-		} else {
-			consWeight += weight
-		}
+func NewManyVoters(
+	spawnVoters []voter.Voter,
+	closeVoters []voter.Voter,
+) *ManyVoters {
+	return &ManyVoters{
+		spawnVoters: spawnVoters,
+		closeVoters: closeVoters,
 	}
-	return prosWeight > consWeight || forNumber > len(s.voters)-forNumber
+}
+
+func (s *ManyVoters) For() enum.Action {
+	var spawnWeight enum.Weight
+	for _, v := range s.spawnVoters {
+		spawnWeight += v.Vote()
+	}
+
+	var closeWeight enum.Weight
+	for _, v := range s.closeVoters {
+		closeWeight += v.Vote()
+	}
+
+	if spawnWeight > closeWeight {
+		return enum.Spawn
+	} else if closeWeight > spawnWeight {
+		return enum.Close
+	} else {
+		return enum.Await
+	}
 }
