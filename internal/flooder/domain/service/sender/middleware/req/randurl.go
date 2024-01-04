@@ -1,7 +1,7 @@
 package reqmiddleware
 
 import (
-	"ddos/internal/ddos/infrastructure/httpclient/middleware"
+	"ddos/internal/flooder/infrastructure/httpclient/middleware"
 	logservice "ddos/internal/log/domain/service"
 	"math/rand"
 	"net/http"
