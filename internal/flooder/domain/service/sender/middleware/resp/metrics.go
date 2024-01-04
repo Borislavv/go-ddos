@@ -1,8 +1,8 @@
 package respmiddleware
 
 import (
-	reqmiddleware "ddos/internal/ddos/domain/service/sender/middleware/req"
-	middleware "ddos/internal/ddos/infrastructure/httpclient/middleware"
+	reqmiddleware "ddos/internal/flooder/domain/service/sender/middleware/req"
+	middleware "ddos/internal/flooder/infrastructure/httpclient/middleware"
 	logservice "ddos/internal/log/domain/service"
 	statservice "ddos/internal/stat/domain/service"
 	"net/http"
