@@ -18,6 +18,10 @@ func NewByMinWorkers(cfg *config.Config, collector statservice.Collector) *ByMin
 	}
 }
 
-func (s *ByMinWorkers) Vote() (isFor bool, weight enum.Weight) {
-	return s.cfg.MinWorkers > s.collector.Workers(), enum.TotallyFor
+func (s *ByMinWorkers) Vote() (weight enum.Weight) {
+	if s.collector.Workers() >= s.cfg.MinWorkers {
+		return enum.Check
+	}
+
+	return enum.AbsolutelyFor
 }
