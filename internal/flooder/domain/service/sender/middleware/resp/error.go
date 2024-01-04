@@ -1,8 +1,8 @@
 package respmiddleware
 
 import (
-	"ddos/internal/ddos/domain/model"
-	middleware "ddos/internal/ddos/infrastructure/httpclient/middleware"
+	"ddos/internal/flooder/domain/model"
+	middleware "ddos/internal/flooder/infrastructure/httpclient/middleware"
 	logservice "ddos/internal/log/domain/service"
 	"encoding/json"
 	"net/http"
@@ -19,7 +19,7 @@ func NewErrorMiddleware(logger logservice.Logger) *ErrorMiddleware {
 func (m *ErrorMiddleware) HandleError(next middleware.ResponseHandler) middleware.ResponseHandler {
 	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
 		if err != nil {
-			b, e := json.MarshalIndent(model.Log{Error: err.Error()}, "", "  ")
+			b, e := json.MarshalIndent(floodermodel.Log{Error: err.Error()}, "", "  ")
 			if e != nil {
 				m.logger.Println(e.Error())
 				return next.Handle(resp, err)
