@@ -1,23 +1,47 @@
 package votestrategy
 
 import (
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter"
 )
 
 type AtLeastOneVoter struct {
-	voters []voter.Voter
+	spawnVoters []voter.Voter
+	closeVoters []voter.Voter
 }
 
-func NewAtLeastOneVoter(voters []voter.Voter) *AtLeastOneVoter {
-	return &AtLeastOneVoter{voters: voters}
+func NewAtLeastOneVoter(
+	spawnVoters []voter.Voter,
+	closeVoters []voter.Voter,
+) *AtLeastOneVoter {
+	return &AtLeastOneVoter{
+		spawnVoters: spawnVoters,
+		closeVoters: closeVoters,
+	}
 }
 
-func (s *AtLeastOneVoter) IsFor() bool {
-	for _, v := range s.voters {
-		isFor, _ := v.Vote()
-		if isFor {
-			return true
+func (s *AtLeastOneVoter) For() enum.Action {
+	var forSpawn enum.Weight
+	for _, v := range s.spawnVoters {
+		w := v.Vote()
+		if forSpawn < w {
+			forSpawn = w
 		}
 	}
-	return false
+
+	var forClose enum.Weight
+	for _, v := range s.closeVoters {
+		w := v.Vote()
+		if forClose < w {
+			forClose = w
+		}
+	}
+
+	if forSpawn > forClose {
+		return enum.Spawn
+	} else if forClose > forSpawn {
+		return enum.Close
+	} else {
+		return enum.Await
+	}
 }
