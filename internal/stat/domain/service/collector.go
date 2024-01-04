@@ -3,6 +3,7 @@ package statservice
 import (
 	"context"
 	"ddos/internal/ddos/infrastructure/httpclient"
+	logservice "ddos/internal/log/domain/service"
 	"ddos/internal/stat/domain/model"
 	"math"
 	"sync"
@@ -12,6 +13,7 @@ import (
 type CollectorService struct {
 	ctx                context.Context
 	mu                 *sync.RWMutex
+	logger             logservice.Logger
 	startedAt          time.Time
 	httpClient         httpclient.Pooled
 	durPerPercentile   time.Duration
@@ -19,9 +21,10 @@ type CollectorService struct {
 	stages             int64
 }
 
-func NewCollector(ctx context.Context, httpClient httpclient.Pooled, duration time.Duration, stages int64) *CollectorService {
+func NewCollectorService(ctx context.Context, logger logservice.Logger, httpClient httpclient.Pooled, duration time.Duration, stages int64) *CollectorService {
 	c := &CollectorService{
 		ctx:              ctx,
+		logger:           logger,
 		startedAt:        time.Now(),
 		httpClient:       httpClient,
 		mu:               &sync.RWMutex{},
@@ -40,7 +43,10 @@ func NewCollector(ctx context.Context, httpClient httpclient.Pooled, duration ti
 }
 
 func (c *CollectorService) Run(wg *sync.WaitGroup) {
-	defer wg.Done()
+	defer func() {
+		c.logger.Println("stat.CollectorService.Run() is closed")
+		wg.Done()
+	}()
 
 	refreshTicker := time.NewTicker(time.Millisecond * 100)
 	defer refreshTicker.Stop()
