@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type Stat struct {
+type App struct {
 	ctx          context.Context
 	logger       logservice.Logger
 	renderer     displayservice.Renderer
@@ -28,8 +28,8 @@ func New(
 	logger logservice.Logger,
 	renderer displayservice.Renderer,
 	collector statservice.Collector,
-) *Stat {
-	return &Stat{
+) *App {
+	return &App{
 		ctx:          ctx,
 		logger:       logger,
 		renderer:     renderer,
@@ -38,13 +38,13 @@ func New(
 	}
 }
 
-func (s *Stat) Run(mwg *sync.WaitGroup) {
+func (s *App) Run(mwg *sync.WaitGroup) {
 	tableCh := s.renderer.TableCh()
 	summaryTableCh := s.renderer.SummaryTableCh()
 
 	defer func() {
-		close(tableCh)
-		close(summaryTableCh)
+		s.logger.Println("stat.App.Run() is closed")
+		_ = s.renderer.Close()
 		mwg.Done()
 	}()
 
@@ -54,28 +54,33 @@ func (s *Stat) Run(mwg *sync.WaitGroup) {
 	for {
 		select {
 		case <-s.ctx.Done():
-			select {
-			case summaryTableCh <- &displaymodel.Table{
+			table := &displaymodel.Table{
 				Header: s.buildHeader(),
 				Rows:   s.buildRows(),
 				Footer: s.buildSummaryRow(),
-			}:
+			}
+
+			select {
+			case summaryTableCh <- table:
 			default:
 			}
+
 			return
 		case <-fps.C:
-			select {
-			case tableCh <- &displaymodel.Table{
+			table := &displaymodel.Table{
 				Header: s.buildHeader(),
 				Rows:   s.buildRows(),
-			}:
+			}
+
+			select {
+			case tableCh <- table:
 			default:
 			}
 		}
 	}
 }
 
-func (s *Stat) buildHeader() []string {
+func (s *App) buildHeader() []string {
 	return []string{
 		"duration",
 		"rps",
@@ -92,7 +97,7 @@ func (s *Stat) buildHeader() []string {
 	}
 }
 
-func (s *Stat) buildRows() [][]string {
+func (s *App) buildRows() [][]string {
 	var rows [][]string
 	for percentile := int64(1); percentile <= s.collector.Stages(); percentile++ {
 		row, ok := s.renderedRows[percentile]
@@ -117,7 +122,7 @@ func (s *Stat) buildRows() [][]string {
 	return rows
 }
 
-func (s *Stat) buildRow(percentile int64, metric *model.Metrics) []string {
+func (s *App) buildRow(percentile int64, metric *model.Metrics) []string {
 	return []string{
 		metric.Duration().String(),
 		fmt.Sprintf("%d", metric.RPS()),
@@ -134,7 +139,7 @@ func (s *Stat) buildRow(percentile int64, metric *model.Metrics) []string {
 	}
 }
 
-func (s *Stat) buildSummaryRow() []string {
+func (s *App) buildSummaryRow() []string {
 	return []string{
 		s.collector.SummaryDuration().String(),
 		fmt.Sprintf("%d", s.collector.SummaryRPS()),
