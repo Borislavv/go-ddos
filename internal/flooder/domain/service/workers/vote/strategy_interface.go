@@ -1,5 +1,7 @@
 package vote
 
+import "github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
+
 type Strategy interface {
-	IsFor() bool
+	For() enum.Action
 }
