@@ -15,11 +15,9 @@ import (
 )
 
 var (
-	UndefinedSpawnVoteStrategyWasGivenError = errors.New("undefined spawn vote strategy was given, check your input")
-	UndefinedCloseVoteStrategyWasGivenError = errors.New("undefined close vote strategy was given, check your input")
-
-	UndefinedSpawnVoterWasGivenError = errors.New("undefined spawn voter was given, check your input")
-	UndefinedCloseVoterWasGivenError = errors.New("undefined spawn voter was given, check your input")
+	UndefinedVoteStrategyWasGivenError = errors.New("undefined vote strategy was given, check your input")
+	UndefinedSpawnVoterWasGivenError   = errors.New("undefined spawn voter was given, check your input")
+	UndefinedCloseVoterWasGivenError   = errors.New("undefined close voter was given, check your input")
 )
 
 type BalancerService struct {
@@ -52,81 +50,45 @@ func NewBalancerService(
 	if err := s.initVotersForClose(); err != nil {
 		panic(err)
 	}
-
-	if err := s.initVoteStrategyForSpawn(); err != nil {
-		panic(err)
-	}
-	if err := s.initVoteStrategyForClose(); err != nil {
+	if err := s.initVoteStrategy(); err != nil {
 		panic(err)
 	}
 
 	return s
 }
 
-func (s *BalancerService) IsMustBeSpawned() bool {
-	return s.voteStrategyForSpawn.IsFor()
+func (s *BalancerService) CurrentAction() enum.Action {
+	return s.voteStrategyForSpawn.For()
 }
 
-func (s *BalancerService) IsMustBeClosed() bool {
-	return s.voteStrategyForClose.IsFor()
-}
-
-func (s *BalancerService) initVoteStrategyForSpawn() error {
+func (s *BalancerService) initVoteStrategy() error {
 	switch enum.VoteStrategy(s.cfg.SpawnVoteStrategy) {
 	case enum.AllVotersStrategy:
-		s.voteStrategyForSpawn = votestrategy.NewAllVoters(s.votersForSpawn)
+		s.voteStrategyForSpawn = votestrategy.NewAllVoters(s.votersForSpawn, s.votersForClose)
 
-		s.logger.Println("workers.Balancer.initVoteStrategyForSpawn(): " +
-			"'all' strategy was successfully sat up for spawn")
+		s.logger.Println("workers.Balancer.initVoteStrategy(): " +
+			"'all' strategy was successfully sat up")
 
 		return nil
 	case enum.ManyVotersStrategy:
-		s.voteStrategyForSpawn = votestrategy.NewManyVoters(s.votersForSpawn)
+		s.voteStrategyForSpawn = votestrategy.NewManyVoters(s.votersForSpawn, s.votersForClose)
 
-		s.logger.Println("workers.Balancer.initVoteStrategyForSpawn(): " +
-			"'many' strategy was successfully sat up for spawn")
+		s.logger.Println("workers.Balancer.initVoteStrategy(): " +
+			"'many' strategy was successfully sat up")
 
 		return nil
 	case enum.AtLeastOneVoterStrategy:
-		s.voteStrategyForSpawn = votestrategy.NewAtLeastOneVoter(s.votersForSpawn)
+		s.voteStrategyForSpawn = votestrategy.NewAtLeastOneVoter(s.votersForSpawn, s.votersForClose)
 
-		s.logger.Println("workers.Balancer.initVoteStrategyForSpawn(): " +
-			"'at_least_one' strategy was successfully sat up for spawn")
+		s.logger.Println("workers.Balancer.initVoteStrategy(): " +
+			"'at_least_one' strategy was successfully sat up")
 
 		return nil
 	default:
-		s.logger.Printfln("workers.Balancer.initVoteStrategyForSpawn(): "+
+		s.logger.Printfln("workers.Balancer.initVoteStrategy(): "+
 			"error occurred due to undefined vote strategy '%v' was given", s.cfg.SpawnVoteStrategy)
 
-		return UndefinedSpawnVoteStrategyWasGivenError
-	}
-}
-
-func (s *BalancerService) initVoteStrategyForClose() error {
-	switch enum.VoteStrategy(s.cfg.CloseVoteStrategy) {
-	case enum.AllVotersStrategy:
-		s.logger.Println("workers.Balancer.initVoteStrategyForClose(): " +
-			"'all' strategy was successfully sat up for close")
-
-		s.voteStrategyForClose = votestrategy.NewAllVoters(s.votersForClose)
-
-		return nil
-	case enum.ManyVotersStrategy:
-		s.voteStrategyForClose = votestrategy.NewManyVoters(s.votersForClose)
-
-		s.logger.Println("workers.Balancer.initVoteStrategyForClose(): " +
-			"'many' strategy was successfully sat up for close")
-
-		return nil
-	case enum.AtLeastOneVoterStrategy:
-		s.voteStrategyForClose = votestrategy.NewAtLeastOneVoter(s.votersForClose)
-
-		s.logger.Println("workers.Balancer.initVoteStrategyForClose(): " +
-			"'at_least_one' strategy was successfully sat up for close")
-
-		return nil
-	default:
-		return UndefinedCloseVoteStrategyWasGivenError
+		return UndefinedVoteStrategyWasGivenError
 	}
 }
 
