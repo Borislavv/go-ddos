@@ -14,4 +14,5 @@ require (
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
+	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc // indirect
 )

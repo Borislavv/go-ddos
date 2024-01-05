@@ -2,6 +2,7 @@ package displayservice
 
 import (
 	"context"
+	"fmt"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
@@ -46,6 +47,12 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 
 	width, height := ui.TerminalDimensions()
 
+	defer func() {
+		if e := recover(); e != nil {
+			panic(fmt.Sprintf("e: %v, width: %d, height: %d, len: %d, cap: %d", e, width, height, len(r.rps.Data[rps]), cap(r.rps.Data[rps])))
+		}
+	}()
+
 	r.rps = r.initRpsPlot(width, height)
 	r.logs = r.initLogsList(width, height)
 
@@ -62,19 +69,31 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 			case "<Resize>":
 				payload := e.Payload.(ui.Resize)
 				width = payload.Width
+				height = payload.Height
 
-				r.rps.SetRect(0, 0, payload.Width, payload.Height-10)
-				if len(r.rps.Data[rps]) >= width/100*98 {
-					r.rps.Data[rps] = r.rps.Data[rps][width-width/100*95:]
+				r.rps.SetRect(0, 0, width, height-10)
+				log.Printf("width: %d, len(rps): %d, ((width / 100) * 95): %d", width, len(r.rps.Data[rps]), (width/100)*95)
+				if len(r.rps.Data[rps]) >= ((width / 100) * 98) {
+					tmp := make([]float64, 0, width)
+					for _, v := range r.rps.Data[rps] {
+						tmp = append(tmp, v)
+					}
+					r.rps.Data[rps] = tmp
 				}
 
-				r.logs.SetRect(0, payload.Height-10, payload.Width, payload.Height)
+				r.logs.SetRect(0, height-10, width, height)
 
 				ui.Clear()
 			}
 		case <-ticker.C:
-			if len(r.rps.Data[rps]) >= width/100*98 {
-				r.rps.Data[rps] = r.rps.Data[rps][width-width/100*95:]
+			log.Printf("width: %d, len(rps): %d, ((width / 100) * 95): %d", width, len(r.rps.Data[rps]), (width/100)*95)
+			if len(r.rps.Data[rps]) >= ((width / 100) * 98) {
+				log.Println("OUT OF RANGE")
+				tmp := make([]float64, 0, width)
+				for i := width - ((width / 100) * 95); i < len(r.rps.Data[rps]); i++ {
+					tmp = append(tmp, r.rps.Data[rps][i])
+				}
+				r.rps.Data[rps] = tmp
 			}
 			r.rps.Data[rps] = append(r.rps.Data[rps], float64(r.collector.RPS()))
 
