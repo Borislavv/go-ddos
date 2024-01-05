@@ -13,28 +13,18 @@ type ByRPS struct {
 }
 
 func NewByRPS(cfg *config.Config, collector statservice.Collector) *ByRPS {
-	collector.SetLastSpawnByRPS()
-
 	return &ByRPS{
 		cfg:       cfg,
 		collector: collector,
 	}
 }
 
-func (s *ByRPS) Vote() (weight enum.Weight) {
-	if time.Since(s.collector.LastSpawnByRPS()) < s.cfg.SpawnIntervalValue {
-		return enum.Check
-	}
-
-	defer s.collector.SetLastSpawnByRPS()
-
+func (s *ByRPS) Vote() (weight enum.Weight, sleep time.Duration) {
 	if s.collector.RPS() < int64(float64(s.cfg.TargetRPS)*(1-s.cfg.ToleranceCoefficient)) {
 		if s.collector.Workers() < s.cfg.MaxWorkers {
-			return enum.SureFor
-		} else {
-			return enum.For
+			return enum.SureFor, time.Millisecond * 250
 		}
 	}
 
-	return enum.Check
+	return enum.Check, 0
 }
