@@ -12,6 +12,7 @@ import (
 	spawnvoter "github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter/spawn"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
+	"time"
 )
 
 var (
@@ -57,7 +58,7 @@ func NewBalancerService(
 	return s
 }
 
-func (s *BalancerService) CurrentAction() enum.Action {
+func (s *BalancerService) CurrentAction() (action enum.Action, sleep time.Duration) {
 	return s.voteStrategyForSpawn.For()
 }
 
