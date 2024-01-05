@@ -1,14 +1,14 @@
-package reqbalancer
+package workers
 
 import (
 	"context"
 	"ddos/config"
 	"ddos/internal/flooder/domain/enum"
-	"ddos/internal/flooder/domain/service/balancer"
-	closevoter "ddos/internal/flooder/domain/service/balancer/req/voter/close"
-	spawnvoter "ddos/internal/flooder/domain/service/balancer/req/voter/spawn"
-	"ddos/internal/flooder/domain/service/balancer/vote"
-	votestrategy "ddos/internal/flooder/domain/service/balancer/vote/strategy"
+	"ddos/internal/flooder/domain/service/workers/vote"
+	votestrategy2 "ddos/internal/flooder/domain/service/workers/vote/strategy"
+	"ddos/internal/flooder/domain/service/workers/voter"
+	closevoter "ddos/internal/flooder/domain/service/workers/voter/close"
+	spawnvoter "ddos/internal/flooder/domain/service/workers/voter/spawn"
 	statservice "ddos/internal/stat/domain/service"
 	"errors"
 )
@@ -24,8 +24,8 @@ type Balancer struct {
 	collector            statservice.Collector
 	voteStrategyForSpawn vote.Strategy
 	voteStrategyForClose vote.Strategy
-	votersForSpawn       []balancer.Voter
-	votersForClose       []balancer.Voter
+	votersForSpawn       []voter.Voter
+	votersForClose       []voter.Voter
 }
 
 func NewBalancer(
@@ -62,13 +62,13 @@ func NewBalancer(
 func (s *Balancer) initVoteStrategyForSpawn() error {
 	switch enum.VoteStrategy(s.cfg.VoteForSpawnReqSenderStrategy) {
 	case enum.AllVotersStrategy:
-		s.voteStrategyForSpawn = votestrategy.NewAllVoters(s.votersForSpawn, s.cfg, s.collector)
+		s.voteStrategyForSpawn = votestrategy2.NewAllVoters(s.votersForSpawn, s.cfg, s.collector)
 		return nil
 	case enum.ManyVotersStrategy:
-		s.voteStrategyForSpawn = votestrategy.NewManyVoters(s.votersForSpawn, s.cfg, s.collector)
+		s.voteStrategyForSpawn = votestrategy2.NewManyVoters(s.votersForSpawn, s.cfg, s.collector)
 		return nil
 	case enum.AtLeastOneVoterStrategy:
-		s.voteStrategyForSpawn = votestrategy.NewAtLeastOneVoter(s.votersForSpawn, s.cfg, s.collector)
+		s.voteStrategyForSpawn = votestrategy2.NewAtLeastOneVoter(s.votersForSpawn, s.cfg, s.collector)
 		return nil
 	default:
 		return SpawnVoteStrategyWasNotFoundError
@@ -78,13 +78,13 @@ func (s *Balancer) initVoteStrategyForSpawn() error {
 func (s *Balancer) initVoteStrategyForClose() error {
 	switch enum.VoteStrategy(s.cfg.VoteForCloseReqSenderStrategy) {
 	case enum.AllVotersStrategy:
-		s.voteStrategyForClose = votestrategy.NewAllVoters(s.votersForClose, s.cfg, s.collector)
+		s.voteStrategyForClose = votestrategy2.NewAllVoters(s.votersForClose, s.cfg, s.collector)
 		return nil
 	case enum.ManyVotersStrategy:
-		s.voteStrategyForClose = votestrategy.NewManyVoters(s.votersForClose, s.cfg, s.collector)
+		s.voteStrategyForClose = votestrategy2.NewManyVoters(s.votersForClose, s.cfg, s.collector)
 		return nil
 	case enum.AtLeastOneVoterStrategy:
-		s.voteStrategyForClose = votestrategy.NewAtLeastOneVoter(s.votersForClose, s.cfg, s.collector)
+		s.voteStrategyForClose = votestrategy2.NewAtLeastOneVoter(s.votersForClose, s.cfg, s.collector)
 		return nil
 	default:
 		return CloseVoteStrategyWasNotFoundError
@@ -92,7 +92,7 @@ func (s *Balancer) initVoteStrategyForClose() error {
 }
 
 func (s *Balancer) initVotersForSpawn() {
-	s.votersForSpawn = []balancer.Voter{
+	s.votersForSpawn = []voter.Voter{
 		//spawnvoter.ByRPS(s.cfg, s.collector),
 		//spawnvoter.ByInterval(s.cfg, s.collector),
 		spawnvoter.ByMinWorkers(),
@@ -101,7 +101,7 @@ func (s *Balancer) initVotersForSpawn() {
 }
 
 func (s *Balancer) initVotersForClose() {
-	s.votersForClose = []balancer.Voter{
+	s.votersForClose = []voter.Voter{
 		//closevoter.ByRPS(s.cfg, s.collector),
 		closevoter.ByMaxWorkers(),
 		//closevoter.ByAvgDuration(s.cfg, s.collector),
