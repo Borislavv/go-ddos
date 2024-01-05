@@ -1,4 +1,4 @@
-package balancer
+package voter
 
 import (
 	"ddos/config"
