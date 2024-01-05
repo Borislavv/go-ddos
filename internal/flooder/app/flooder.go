@@ -61,14 +61,15 @@ func (f *App) Run(mwg *sync.WaitGroup) {
 			f.manager.CloseAll(cancel, wg)
 			return
 		case <-balancerTicker.C:
-			switch f.balancer.CurrentAction() {
+			action, sleep := f.balancer.CurrentAction()
+			switch action {
 			case enum.Spawn:
 				f.manager.SpawnOne(ctx, wg, reqSendTicker)
 			case enum.Close:
 				f.manager.CloseOne()
 			case enum.Await:
-				time.Sleep(time.Millisecond * 50)
 			}
+			time.Sleep(sleep)
 		}
 	}
 }
