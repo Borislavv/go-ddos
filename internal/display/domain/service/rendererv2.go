@@ -64,12 +64,8 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				width = payload.Width
 
 				r.rps.SetRect(0, 0, payload.Width, payload.Height-10)
-				if len(r.rps.Data[rps]) >= width-10 {
-					tmp := make([]float64, 0, len(r.rps.Data[rps]))
-					for i := ((width - 10) / 100) * 10; i < width-10; i++ {
-						tmp = append(tmp, r.rps.Data[rps][i])
-					}
-					r.rps.Data[rps] = tmp
+				if len(r.rps.Data[rps]) >= width/100*98 {
+					r.rps.Data[rps] = r.rps.Data[rps][width-width/100*95:]
 				}
 
 				r.logs.SetRect(0, payload.Height-10, payload.Width, payload.Height)
@@ -77,16 +73,11 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				ui.Clear()
 			}
 		case <-ticker.C:
-			if len(r.rps.Data[rps]) >= width-10 {
-				tmp := make([]float64, 0, len(r.rps.Data[rps]))
-				for i := ((width - 10) / 100) * 10; i < width-10; i++ {
-					tmp = append(tmp, r.rps.Data[rps][i])
-				}
-				r.rps.Data[rps] = tmp
+			if len(r.rps.Data[rps]) >= width/100*98 {
+				r.rps.Data[rps] = r.rps.Data[rps][width-width/100*95:]
 			}
-			r.rps.Data[0] = append(r.rps.Data[0], float64(r.collector.RPS()))
+			r.rps.Data[rps] = append(r.rps.Data[rps], float64(r.collector.RPS()))
 
-			// Проверяем, есть ли достаточно данных перед рендерингом
 			if len(r.rps.Data[0]) > 1 {
 				ui.Render(r.rps, r.logs)
 			}
@@ -109,12 +100,13 @@ func (r *RendererV2Service) initRpsPlot(width, height int) *widgets.Plot {
 	plot := widgets.NewPlot()
 	plot.Title = "RPS"
 
-	plot.Data = make([][]float64, 1)         // need attention
-	plot.Data[0] = make([]float64, 0, width) // need attention
+	plot.Data = make([][]float64, 1)           // need attention
+	plot.Data[rps] = make([]float64, 0, width) // need attention
+	plot.DataLabels = make([]string, 0, width)
 
 	plot.AxesColor = ui.ColorWhite
-	plot.LineColors[0] = ui.ColorCyan
-	plot.SetRect(0, 0, width, height-5)
+	plot.LineColors[rps] = ui.ColorGreen
+	plot.SetRect(0, 0, width, height-10)
 	return plot
 }
 
