@@ -2,8 +2,8 @@ package httpclient
 
 import (
 	"context"
-	"ddos/internal/ddos/infrastructure/httpclient/config"
-	"ddos/internal/ddos/infrastructure/httpclient/middleware"
+	"ddos/internal/flooder/infrastructure/httpclient/config"
+	"ddos/internal/flooder/infrastructure/httpclient/middleware"
 	"io"
 	"net/http"
 	"net/http/httptest"
