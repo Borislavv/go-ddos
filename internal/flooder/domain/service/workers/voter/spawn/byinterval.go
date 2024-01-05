@@ -13,24 +13,16 @@ type ByInterval struct {
 }
 
 func NewByInterval(cfg *config.Config, collector statservice.Collector) *ByInterval {
-	collector.SetLastSpawnByInterval()
-
 	return &ByInterval{
 		cfg:       cfg,
 		collector: collector,
 	}
 }
 
-func (s *ByInterval) Vote() (weight enum.Weight) {
-	if time.Since(s.collector.LastSpawnByInterval()) < s.cfg.SpawnIntervalValue {
-		return enum.Check
-	}
-
-	defer s.collector.SetLastSpawnByInterval()
-
+func (s *ByInterval) Vote() (weight enum.Weight, sleep time.Duration) {
 	if s.collector.Workers() < s.cfg.MaxWorkers {
-		return enum.TotallyFor
+		return enum.TotallyFor, time.Millisecond * 500
 	} else {
-		return enum.For
+		return enum.For, time.Millisecond * 1000
 	}
 }
