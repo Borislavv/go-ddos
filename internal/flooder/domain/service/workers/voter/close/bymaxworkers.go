@@ -4,6 +4,7 @@ import (
 	"github.com/Borislavv/go-ddos/config"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
+	"time"
 )
 
 type ByMaxWorkers struct {
@@ -18,10 +19,10 @@ func NewByMaxWorkers(cfg *config.Config, collector statservice.Collector) *ByMax
 	}
 }
 
-func (s *ByMaxWorkers) Vote() (weight enum.Weight) {
+func (s *ByMaxWorkers) Vote() (weight enum.Weight, sleep time.Duration) {
 	if s.collector.Workers() <= s.cfg.MaxWorkers {
-		return enum.Check
+		return enum.Check, 0
 	}
 
-	return enum.AbsolutelyFor
+	return enum.AbsolutelyFor, 0
 }
