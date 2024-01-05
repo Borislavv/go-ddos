@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"github.com/Borislavv/go-ddos/config"
-	display "github.com/Borislavv/go-ddos/internal/display/app"
 	displayservice "github.com/Borislavv/go-ddos/internal/display/domain/service"
 	ddosservice "github.com/Borislavv/go-ddos/internal/flooder/app"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender"
@@ -11,9 +10,9 @@ import (
 	"github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient"
 	httpclientconfig "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
-	stat "github.com/Borislavv/go-ddos/internal/stat/app"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"github.com/alexflint/go-arg"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -72,20 +71,26 @@ func main() {
 	defer func() { _ = pl.Close() }()
 
 	cl := statservice.NewCollectorService(ctx, lg, pl, duration, cfg.Stages)
-	rr := displayservice.NewRendererService(ctx, lg, exitCh)
-	st := stat.New(ctx, cfg, lg, rr, cl)
-	dy := display.New(ctx, lg, rr)
+
+	r := displayservice.NewRendererV2Service(ctx, exitCh, cl)
+	log.SetOutput(r)
+
+	//rr := displayservice.NewRendererService(ctx, lg, exitCh)
+	//st := stat.New(ctx, cfg, lg, rr, cl)
+	//dy := display.New(ctx, lg, rr)
 	sr := sender.NewHttp(cfg, lg, pl, cl)
 	mg := workers.NewManagerService(ctx, sr, lg, cl)
 	bl := workers.NewBalancerService(ctx, cfg, lg, cl)
 	fl := ddosservice.New(ctx, cfg, lg, bl, cl, mg)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(4)
+	wg.Add(3)
 	defer wg.Wait()
+	go r.Run(wg)
+	time.Sleep(time.Second)
 	go cl.Run(wg)
-	go dy.Run(wg)
-	go st.Run(wg)
+	//go dy.Run(wg)
+	//go st.Run(wg)
 	go fl.Run(wg)
 
 	select {
