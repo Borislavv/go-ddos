@@ -13,29 +13,44 @@ type ByAvgDuration struct {
 }
 
 func NewByAvgDuration(cfg *config.Config, collector statservice.Collector) *ByAvgDuration {
-	collector.SetLastSpawnByAvgDuration()
-
 	return &ByAvgDuration{
 		cfg:       cfg,
 		collector: collector,
 	}
 }
 
-func (s *ByAvgDuration) Vote() (weight enum.Weight) {
-	if time.Since(s.collector.LastSpawnByAvgDuration()) < s.cfg.SpawnIntervalValue {
-		return enum.Check
+func (s *ByAvgDuration) Vote() (weight enum.Weight, sleep time.Duration) {
+	if s.collector.Workers() >= s.cfg.MaxWorkers {
+		return enum.Check, 0
 	}
 
-	defer s.collector.SetLastSpawnByAvgDuration()
+	mn := time.Duration(float64(s.cfg.TargetAvgSuccessRequestsDurationValue) * (1 - s.cfg.ToleranceCoefficient))
+	cr := s.collector.AvgSuccessRequestsDuration()
 
-	if s.collector.AvgSuccessRequestsDuration() <
-		time.Duration(float64(s.cfg.TargetAvgSuccessRequestsDurationValue.Nanoseconds())*(1-s.cfg.ToleranceCoefficient)) {
-		if s.collector.Workers() < s.cfg.MaxWorkers {
-			return enum.AbsolutelyFor
-		} else {
-			return enum.SureFor
-		}
+	if cr > mn || cr == 0 {
+		return enum.Check, 0
 	}
 
-	return enum.Check
+	cf := float64(mn) / float64(cr)
+	if cf <= 0 {
+		return enum.Check, 0
+	}
+
+	if cf >= 2 {
+		return enum.TotallyFor, time.Millisecond * 50
+	}
+	if cf >= 1 {
+		return enum.TotallyFor, time.Millisecond * 250
+	}
+	if cf >= 0.5 {
+		return enum.SureFor, time.Millisecond * 750
+	}
+	if cf >= 0.2 {
+		return enum.For, time.Millisecond * 1500
+	}
+	if cf >= 0.1 {
+		return enum.For, time.Millisecond * 3000
+	}
+
+	return enum.Check, 0
 }
