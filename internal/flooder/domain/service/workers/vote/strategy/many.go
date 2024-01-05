@@ -3,6 +3,7 @@ package votestrategy
 import (
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter"
+	"time"
 )
 
 type ManyVoters struct {
@@ -20,22 +21,28 @@ func NewManyVoters(
 	}
 }
 
-func (s *ManyVoters) For() enum.Action {
-	var spawnWeight enum.Weight
-	for _, v := range s.spawnVoters {
-		spawnWeight += v.Vote()
+func (v *ManyVoters) For() (action enum.Action, sleep time.Duration) {
+	var slpSpawn time.Duration
+	var forSpawn enum.Weight
+	for _, c := range v.spawnVoters {
+		w, s := c.Vote()
+		forSpawn += w
+		slpSpawn += s
 	}
 
-	var closeWeight enum.Weight
-	for _, v := range s.closeVoters {
-		closeWeight += v.Vote()
+	var slpClose time.Duration
+	var forClose enum.Weight
+	for _, c := range v.closeVoters {
+		w, s := c.Vote()
+		forClose += w
+		slpClose += s
 	}
 
-	if spawnWeight > closeWeight {
-		return enum.Spawn
-	} else if closeWeight > spawnWeight {
-		return enum.Close
+	if forSpawn > forClose {
+		return enum.Spawn, slpSpawn
+	} else if forClose > forSpawn {
+		return enum.Close, slpClose
 	} else {
-		return enum.Await
+		return enum.Await, slpSpawn + slpClose
 	}
 }
