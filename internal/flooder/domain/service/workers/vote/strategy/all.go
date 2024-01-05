@@ -3,6 +3,7 @@ package votestrategy
 import (
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter"
+	"time"
 )
 
 type AllVoters struct {
@@ -20,34 +21,40 @@ func NewAllVoters(
 	}
 }
 
-func (s *AllVoters) For() enum.Action {
+func (v *AllVoters) For() (action enum.Action, sleep time.Duration) {
+	var slpSpawn time.Duration
 	var forSpawn int
-	for _, v := range s.spawnVoters {
-		if v.Vote() == enum.Check {
+	for _, c := range v.spawnVoters {
+		w, s := c.Vote()
+		if w == enum.Check {
 			continue
 		}
 		forSpawn++
+		slpSpawn += s
 	}
-	if forSpawn < len(s.spawnVoters) {
+	if forSpawn < len(v.spawnVoters) {
 		forSpawn = enum.Check
 	}
 
+	var slpClose time.Duration
 	var forClose int
-	for _, v := range s.closeVoters {
-		if v.Vote() == enum.Check {
+	for _, c := range v.closeVoters {
+		w, s := c.Vote()
+		if w == enum.Check {
 			continue
 		}
 		forClose++
+		slpClose += s
 	}
-	if forClose < len(s.spawnVoters) {
+	if forClose < len(v.spawnVoters) {
 		forClose = enum.Check
 	}
 
 	if forSpawn != enum.Check && forClose != enum.Check {
-		return enum.Await
+		return enum.Await, slpClose + slpSpawn
 	} else if forSpawn != enum.Check {
-		return enum.Spawn
+		return enum.Spawn, slpSpawn
 	} else {
-		return enum.Close
+		return enum.Close, slpClose
 	}
 }
