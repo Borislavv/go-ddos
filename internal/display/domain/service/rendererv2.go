@@ -73,32 +73,43 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				ui.Clear()
 			}
 		case <-ticker.C:
+			// avg rps number
 			if r.isMaxLenReached(width, r.rps.Data[rps]) {
 				r.rps.Data[rps] = r.reduceDataSlice(r.rps.Data[rps])
 			}
-			r.rps.Data[rps] = append(r.rps.Data[rps], float64(r.collector.RPS()))
+			p := float64(r.collector.RPS())
+			if p == 0 {
+				r.rps.LineColors[rps] = ui.ColorBlack
+			} else {
+				r.rps.LineColors[rps] = ui.ColorGreen
+			}
+			r.rps.Data[rps] = append(r.rps.Data[rps], p)
 
+			// avg success requests duration
 			if r.isMaxLenReached(width, r.dur.Data[durSuccess]) {
 				r.dur.Data[durSuccess] = r.reduceDataSlice(r.dur.Data[durSuccess])
 			}
-			r.dur.Data[durSuccess] = append(r.dur.Data[durSuccess], float64(r.collector.AvgSuccessRequestsDuration().Milliseconds()))
+			s := float64(r.collector.AvgSuccessRequestsDuration().Milliseconds())
+			if s == 0 {
+				r.dur.LineColors[durSuccess] = ui.ColorBlack
+			} else {
+				r.dur.LineColors[durSuccess] = ui.ColorGreen
+			}
+			r.dur.Data[durSuccess] = append(r.dur.Data[durSuccess], s)
 
+			// avg failed requests duration
 			if r.isMaxLenReached(width, r.dur.Data[durFailed]) {
 				r.dur.Data[durFailed] = r.reduceDataSlice(r.dur.Data[durFailed])
 			}
-			r.dur.Data[durFailed] = append(r.dur.Data[durFailed], float64(r.collector.AvgFailedRequestsDuration().Milliseconds()))
-			r.dur.DataLabels = append(r.dur.DataLabels, "asdasd")
-
-			var items []ui.Drawable
-			if len(r.rps.Data[rps]) > 1 {
-				items = append(items, r.rps)
+			f := float64(r.collector.AvgFailedRequestsDuration().Milliseconds())
+			if f == 0 {
+				r.dur.LineColors[durFailed] = ui.ColorBlack
+			} else {
+				r.dur.LineColors[durFailed] = ui.ColorRed
 			}
-			if len(r.dur.Data[durSuccess]) > 1 && len(r.dur.Data[durFailed]) > 1 {
-				items = append(items, r.dur)
-			}
-			items = append(items, r.log)
-
-			ui.Render(items...)
+			r.dur.Data[durFailed] = append(r.dur.Data[durFailed], f)
+			
+			ui.Render(r.rps, r.dur, r.log)
 		}
 	}
 }
@@ -130,6 +141,7 @@ func (r *RendererV2Service) initRpsPlot(width, height int) *widgets.Plot {
 
 	plot.Data = make([][]float64, 1)
 	plot.Data[rps] = make([]float64, 0, width)
+	plot.Data[rps] = append(plot.Data[rps], 0)
 	plot.LineColors[rps] = ui.ColorGreen
 
 	plot.SetRect(0, 0, width, height-30)
@@ -146,6 +158,9 @@ func (r *RendererV2Service) initDurPlot(width, height int) *widgets.Plot {
 
 	plot.Data[durSuccess] = make([]float64, 0, width)
 	plot.Data[durFailed] = make([]float64, 0, width)
+
+	plot.Data[durSuccess] = append(plot.Data[durSuccess], 0)
+	plot.Data[durFailed] = append(plot.Data[durFailed], 0)
 
 	plot.LineColors[durSuccess] = ui.ColorGreen
 	plot.LineColors[durFailed] = ui.ColorRed
