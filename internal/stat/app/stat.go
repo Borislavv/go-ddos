@@ -122,7 +122,7 @@ func (s *App) buildRows() [][]string {
 	return rows
 }
 
-func (s *App) buildRow(percentile int64, metric *model.Metrics) []string {
+func (s *App) buildRow(percentile int64, metric *statmodel.Metrics) []string {
 	return []string{
 		metric.Duration().String(),
 		fmt.Sprintf("%d", metric.RPS()),
