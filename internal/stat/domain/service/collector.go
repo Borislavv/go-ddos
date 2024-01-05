@@ -2,7 +2,7 @@ package statservice
 
 import (
 	"context"
-	"ddos/internal/ddos/infrastructure/httpclient"
+	"ddos/internal/flooder/infrastructure/httpclient"
 	logservice "ddos/internal/log/domain/service"
 	"ddos/internal/stat/domain/model"
 	"math"
@@ -17,7 +17,7 @@ type CollectorService struct {
 	startedAt          time.Time
 	httpClient         httpclient.Pooled
 	durPerPercentile   time.Duration
-	percentilesMetrics map[int64]*model.Metrics
+	percentilesMetrics map[int64]*statmodel.Metrics
 	stages             int64
 }
 
@@ -37,7 +37,7 @@ func NewCollectorService(ctx context.Context, logger logservice.Logger, httpClie
 		c.stages = stages
 	}
 
-	c.percentilesMetrics = make(map[int64]*model.Metrics, c.stages)
+	c.percentilesMetrics = make(map[int64]*statmodel.Metrics, c.stages)
 
 	return c
 }
@@ -63,10 +63,10 @@ func (c *CollectorService) Run(wg *sync.WaitGroup) {
 	}
 }
 
-func (c *CollectorService) firstMetric() *model.Metrics {
+func (c *CollectorService) firstMetric() *statmodel.Metrics {
 	metric, ok := c.Metric(1)
 	if !ok {
-		metric = model.NewMetric()
+		metric = statmodel.NewMetric()
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		c.percentilesMetrics[1] = metric
@@ -74,14 +74,14 @@ func (c *CollectorService) firstMetric() *model.Metrics {
 	return metric
 }
 
-func (c *CollectorService) currentMetric() *model.Metrics {
+func (c *CollectorService) currentMetric() *statmodel.Metrics {
 	current := int64(
 		math.Round(float64(time.Since(c.startedAt).Milliseconds()/c.durPerPercentile.Milliseconds())),
 	) + 1
 
 	metric, ok := c.Metric(current)
 	if !ok {
-		metric = model.NewMetric()
+		metric = statmodel.NewMetric()
 		if prevMetric, isset := c.Metric(current - 1); isset {
 			prevMetric.Lock()
 			metric = prevMetric.Clone()
@@ -98,7 +98,7 @@ func (c *CollectorService) Stages() int64 {
 	return c.stages
 }
 
-func (c *CollectorService) Metric(stage int64) (metric *model.Metrics, found bool) {
+func (c *CollectorService) Metric(stage int64) (metric *statmodel.Metrics, found bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	metric, found = c.percentilesMetrics[stage]
