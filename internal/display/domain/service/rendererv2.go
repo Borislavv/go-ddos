@@ -2,7 +2,6 @@ package displayservice
 
 import (
 	"context"
-	"fmt"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
@@ -13,7 +12,9 @@ import (
 )
 
 const (
-	rps = 0
+	rps        = 0
+	durSuccess = 0
+	durFailed  = 1
 )
 
 type RendererV2Service struct {
@@ -21,8 +22,9 @@ type RendererV2Service struct {
 	exitCh    chan<- os.Signal
 	collector statservice.Collector
 
-	logs *widgets.List
-	rps  *widgets.Plot
+	log *widgets.List
+	dur *widgets.Plot
+	rps *widgets.Plot
 }
 
 func NewRendererV2Service(
@@ -47,20 +49,17 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 
 	width, height := ui.TerminalDimensions()
 
-	defer func() {
-		if e := recover(); e != nil {
-			panic(fmt.Sprintf("e: %v, width: %d, height: %d, len: %d, cap: %d", e, width, height, len(r.rps.Data[rps]), cap(r.rps.Data[rps])))
-		}
-	}()
-
+	r.dur = r.initDurPlot(width, height)
 	r.rps = r.initRpsPlot(width, height)
-	r.logs = r.initLogsList(width, height)
+	r.log = r.initLogsList(width, height)
 
 	ticker := time.NewTicker(time.Millisecond * 250)
 	defer ticker.Stop()
 
 	for {
 		select {
+		case <-r.ctx.Done():
+			return
 		case e := <-ui.PollEvents():
 			switch e.ID {
 			case "<C-c>", "<C-z>":
@@ -68,64 +67,91 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				return
 			case "<Resize>":
 				payload := e.Payload.(ui.Resize)
-				width = payload.Width
-				height = payload.Height
-
-				r.rps.SetRect(0, 0, width, height-10)
-				log.Printf("width: %d, len(rps): %d, ((width / 100) * 95): %d", width, len(r.rps.Data[rps]), (width/100)*95)
-				if len(r.rps.Data[rps]) >= ((width / 100) * 98) {
-					tmp := make([]float64, 0, width)
-					for _, v := range r.rps.Data[rps] {
-						tmp = append(tmp, v)
-					}
-					r.rps.Data[rps] = tmp
-				}
-
-				r.logs.SetRect(0, height-10, width, height)
-
+				r.rps.SetRect(0, 0, payload.Width, payload.Height-30)
+				r.dur.SetRect(0, payload.Height-30, payload.Width, payload.Height-10)
+				r.log.SetRect(0, payload.Height-10, payload.Width, payload.Height)
 				ui.Clear()
 			}
 		case <-ticker.C:
-			log.Printf("width: %d, len(rps): %d, ((width / 100) * 95): %d", width, len(r.rps.Data[rps]), (width/100)*95)
-			if len(r.rps.Data[rps]) >= ((width / 100) * 98) {
-				log.Println("OUT OF RANGE")
-				tmp := make([]float64, 0, width)
-				for i := width - ((width / 100) * 95); i < len(r.rps.Data[rps]); i++ {
-					tmp = append(tmp, r.rps.Data[rps][i])
-				}
-				r.rps.Data[rps] = tmp
+			if r.isMaxLenReached(width, r.rps.Data[rps]) {
+				r.rps.Data[rps] = r.reduceDataSlice(r.rps.Data[rps])
 			}
 			r.rps.Data[rps] = append(r.rps.Data[rps], float64(r.collector.RPS()))
 
-			if len(r.rps.Data[0]) > 1 {
-				ui.Render(r.rps, r.logs)
+			if r.isMaxLenReached(width, r.dur.Data[durSuccess]) {
+				r.dur.Data[durSuccess] = r.reduceDataSlice(r.dur.Data[durSuccess])
 			}
+			r.dur.Data[durSuccess] = append(r.dur.Data[durSuccess], float64(r.collector.AvgSuccessRequestsDuration().Milliseconds()))
+
+			if r.isMaxLenReached(width, r.dur.Data[durFailed]) {
+				r.dur.Data[durFailed] = r.reduceDataSlice(r.dur.Data[durFailed])
+			}
+			r.dur.Data[durFailed] = append(r.dur.Data[durFailed], float64(r.collector.AvgFailedRequestsDuration().Milliseconds()))
+			r.dur.DataLabels = append(r.dur.DataLabels, "asdasd")
+
+			var items []ui.Drawable
+			if len(r.rps.Data[rps]) > 1 {
+				items = append(items, r.rps)
+			}
+			if len(r.dur.Data[durSuccess]) > 1 && len(r.dur.Data[durFailed]) > 1 {
+				items = append(items, r.dur)
+			}
+			items = append(items, r.log)
+
+			ui.Render(items...)
 		}
 	}
 }
 
+func (r *RendererV2Service) isMaxLenReached(width int, data []float64) bool {
+	return len(data) >= ((width / 100) * 98)
+}
+
+func (r *RendererV2Service) reduceDataSlice(old []float64) (new []float64) {
+	return old[1:]
+}
+
 func (r *RendererV2Service) Write(p []byte) (n int, err error) {
-	if r.logs == nil {
+	if r.log == nil {
 		return 0, nil
 	}
-	if len(r.logs.Rows) >= 10 {
-		r.logs.Rows = r.logs.Rows[1:]
+	if len(r.log.Rows) >= 10 {
+		r.log.Rows = r.log.Rows[1:]
 	}
-	r.logs.Rows = append(r.logs.Rows, string(p))
+	r.log.Rows = append(r.log.Rows, string(p))
 	return len(p), nil
 }
 
 func (r *RendererV2Service) initRpsPlot(width, height int) *widgets.Plot {
 	plot := widgets.NewPlot()
+
 	plot.Title = "RPS"
-
-	plot.Data = make([][]float64, 1)           // need attention
-	plot.Data[rps] = make([]float64, 0, width) // need attention
-	plot.DataLabels = make([]string, 0, width)
-
 	plot.AxesColor = ui.ColorWhite
+
+	plot.Data = make([][]float64, 1)
+	plot.Data[rps] = make([]float64, 0, width)
 	plot.LineColors[rps] = ui.ColorGreen
-	plot.SetRect(0, 0, width, height-10)
+
+	plot.SetRect(0, 0, width, height-30)
+
+	return plot
+}
+
+func (r *RendererV2Service) initDurPlot(width, height int) *widgets.Plot {
+	plot := widgets.NewPlot()
+	plot.Title = "Duration"
+	plot.AxesColor = ui.ColorWhite
+
+	plot.Data = make([][]float64, 2)
+
+	plot.Data[durSuccess] = make([]float64, 0, width)
+	plot.Data[durFailed] = make([]float64, 0, width)
+
+	plot.LineColors[durSuccess] = ui.ColorGreen
+	plot.LineColors[durFailed] = ui.ColorRed
+
+	plot.SetRect(0, height-30, width, height-10)
+
 	return plot
 }
 
@@ -133,7 +159,7 @@ func (r *RendererV2Service) initLogsList(width, height int) *widgets.List {
 	logs := widgets.NewList()
 	logs.Title = "Logs"
 
-	logs.Rows = make([]string, 0, 10) // need attention
+	logs.Rows = make([]string, 0, 10)
 
 	logs.TextStyle = ui.NewStyle(ui.ColorYellow)
 	logs.SetRect(0, height-10, width, height)
