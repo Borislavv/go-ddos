@@ -1,4 +1,4 @@
-package reqbalancer
+package workers
 
 type SenderInterface interface {
 	IsMustBeSpawned() bool
