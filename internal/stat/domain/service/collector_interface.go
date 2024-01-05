@@ -9,7 +9,7 @@ import (
 type Collector interface {
 	Run(wg *sync.WaitGroup)
 
-	Metric(stage int64) (metric *model.Metrics, found bool)
+	Metric(stage int64) (metric *statmodel.Metrics, found bool)
 	Stages() int64
 	SummaryDuration() time.Duration
 	SummaryRPS() int64
