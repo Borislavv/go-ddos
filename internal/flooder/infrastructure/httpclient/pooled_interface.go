@@ -1,7 +1,7 @@
 package httpclient
 
 import (
-	"ddos/internal/ddos/infrastructure/httpclient/middleware"
+	"ddos/internal/flooder/infrastructure/httpclient/middleware"
 	"net/http"
 )
 
