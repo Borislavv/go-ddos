@@ -2,18 +2,18 @@ package votestrategy
 
 import (
 	"ddos/config"
-	"ddos/internal/flooder/domain/service/balancer"
+	"ddos/internal/flooder/domain/service/workers/voter"
 	statservice "ddos/internal/stat/domain/service"
 )
 
 type AllVoters struct {
-	voters    []balancer.Voter
+	voters    []voter.Voter
 	cfg       *config.Config
 	collector statservice.Collector
 }
 
 func NewAllVoters(
-	voters []balancer.Voter,
+	voters []voter.Voter,
 	cfg *config.Config,
 	collector statservice.Collector,
 ) *AllVoters {
