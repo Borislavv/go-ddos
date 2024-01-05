@@ -3,9 +3,9 @@ package httpclient
 import (
 	"context"
 	"ddos/config"
-	reqmiddleware "ddos/internal/ddos/domain/service/sender/middleware/req"
-	"ddos/internal/ddos/domain/service/sender/middleware/resp"
-	"ddos/internal/ddos/infrastructure/httpclient/config"
+	reqmiddleware "ddos/internal/flooder/domain/service/sender/middleware/req"
+	"ddos/internal/flooder/domain/service/sender/middleware/resp"
+	"ddos/internal/flooder/infrastructure/httpclient/config"
 	logservice "ddos/internal/log/domain/service"
 	statservice "ddos/internal/stat/domain/service"
 	"io"
