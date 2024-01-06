@@ -17,6 +17,7 @@ type Metrics struct {
 	workers             int64 // request sender workers
 	httpClientPoolBusy  int64 // len of pool
 	httpClientPoolTotal int64 // cap of pool
+	httpClientOutOfPool int64 // extra http clients which more than pool max limit
 	// requests
 	rps     int64
 	total   int64
@@ -41,6 +42,7 @@ func (m *Metrics) Clone() *Metrics {
 		rps:                 m.RPS(),
 		httpClientPoolBusy:  m.HttpClientPoolBusy(),
 		httpClientPoolTotal: m.HttpClientPoolTotal(),
+		httpClientOutOfPool: m.HttpClientOutOfPool(),
 	}
 }
 
@@ -88,6 +90,16 @@ func (m *Metrics) HttpClientPoolTotal() int64 {
 func (m *Metrics) SetHttpClientPoolTotal(total int64) {
 	if atomic.LoadInt64(&m.isMutable) == 1 {
 		atomic.CompareAndSwapInt64(&m.httpClientPoolTotal, atomic.LoadInt64(&m.httpClientPoolTotal), total)
+	}
+}
+
+func (m *Metrics) HttpClientOutOfPool() int64 {
+	return atomic.LoadInt64(&m.httpClientOutOfPool)
+}
+
+func (m *Metrics) SetHttpClientOutOfPool(outside int64) {
+	if atomic.LoadInt64(&m.isMutable) == 1 {
+		atomic.CompareAndSwapInt64(&m.httpClientOutOfPool, atomic.LoadInt64(&m.httpClientOutOfPool), outside)
 	}
 }
 
