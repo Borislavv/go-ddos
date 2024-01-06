@@ -3,16 +3,17 @@ package displayservice
 import (
 	"context"
 	"fmt"
+	"github.com/Borislavv/go-ddos/config"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
 	"github.com/nsf/termbox-go"
 	"github.com/olekukonko/tablewriter"
-	"log"
 	"math"
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -22,20 +23,9 @@ const (
 	heightThreshold = 15
 )
 
-const (
-	rps = 0
-
-	durSuccess = 0
-	durFailed  = 1
-
-	goroutines = 0
-
-	httpPoolBusy      = 0
-	httpPoolOutOfPool = 1
-)
-
 type RendererV2Service struct {
 	ctx       context.Context
+	cfg       *config.Config
 	exitCh    chan<- os.Signal
 	collector statservice.Collector
 
@@ -44,15 +34,20 @@ type RendererV2Service struct {
 	rps *widgets.Plot
 	grt *widgets.Plot
 	htp *widgets.Plot
+	wks *widgets.Plot
+	tst *widgets.Gauge
+	inf *widgets.Paragraph
 }
 
 func NewRendererV2Service(
 	ctx context.Context,
+	cfg *config.Config,
 	exitCh chan<- os.Signal,
 	collector statservice.Collector,
 ) *RendererV2Service {
 	return &RendererV2Service{
 		ctx:       ctx,
+		cfg:       cfg,
 		exitCh:    exitCh,
 		collector: collector,
 	}
@@ -63,12 +58,12 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 
 	defer func() {
 		if err := r.summary(); err != nil {
-			log.Println(err)
+			panic(err)
 		}
 	}()
 
 	if err := ui.Init(); err != nil {
-		log.Fatalf("failed to initialize termui: %v", err)
+		panic(err)
 	}
 	defer ui.Close()
 
@@ -82,11 +77,15 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 	r.grt = r.initGoroutinesPlot(width, height)
 	r.rps = r.initRpsPlot(width, height)
 	r.htp = r.initHttpPoolPlot(width, height)
+	r.wks = r.initWorkersPlot(width, height)
+	r.tst = r.initDurationGauge(width, height)
+	r.inf = r.initInfoParagraph(width, height)
 
 	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
 
 	var rpsLineLey int
+	var workersLineKey int
 	var goroutinesLineLey int
 	var httpPoolBusyClientsLineKey int
 	var httpPoolOutOfPoolClientLineKey int
@@ -94,6 +93,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 	var successDurationLineKey int
 
 	var isSatRPSLine bool
+	var isSatWorkersLine bool
 	var isSatGoroutinesLine bool
 	var isSatHttpPoolBusyClientsLine bool
 	var isSatHttpOutOfPoolClientsLine bool
@@ -107,15 +107,12 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 			return
 		case e := <-eventCh:
 			switch e.ID {
-			case "<C-c>", "<C-z>":
+			case "<C-c>", "<C-z>", "q":
 				r.exitCh <- os.Interrupt
 				return
 			case "<Resize>":
 				payload := e.Payload.(ui.Resize)
 				if payload.Width < widthThreshold || payload.Height < heightThreshold {
-					_, _ = fmt.Fprintf(
-						r, "warning: minimum size [%dx%d] was reached", widthThreshold, heightThreshold,
-					)
 					continue
 				}
 
@@ -149,11 +146,32 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(height)/100)*40)),
 				)
 
+				r.wks.SetRect(
+					int(math.Round((float64(width)/100)*60)),
+					int(math.Round((float64(height)/100)*40)),
+					int(math.Round((float64(width)/100)*100)),
+					int(math.Round((float64(height)/100)*60)),
+				)
+
 				r.log.SetRect(
 					0,
 					int(math.Round((float64(height)/100)*80)),
 					int(math.Round((float64(width)/100)*100)),
 					int(math.Round((float64(height)/100)*100)),
+				)
+
+				r.tst.SetRect(
+					int(math.Round((float64(width)/100)*60)),
+					int(math.Round((float64(height)/100)*60)),
+					int(math.Round((float64(width)/100)*100)),
+					int(math.Round((float64(height)/100)*70)),
+				)
+
+				r.inf.SetRect(
+					int(math.Round((float64(width)/100)*60)),
+					int(math.Round((float64(height)/100)*70)),
+					int(math.Round((float64(width)/100)*100)),
+					int(math.Round((float64(height)/100)*80)),
 				)
 
 				ui.Clear()
@@ -260,7 +278,31 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				r.htp.Data[httpPoolOutOfPoolClientLineKey] = append(r.htp.Data[httpPoolOutOfPoolClientLineKey], o)
 			}
 
-			var items = []ui.Drawable{r.log}
+			// workers
+			w := float64(r.collector.Workers())
+			if w > 0 && !isSatWorkersLine {
+				isSatWorkersLine = true
+
+				r.wks.Data = append(r.wks.Data, make([]float64, 0, (width/100)*40))
+				workersLineKey = len(r.wks.Data) - 1
+				r.wks.Data[workersLineKey] = append(r.wks.Data[workersLineKey], 0)
+				r.wks.LineColors[workersLineKey] = ui.ColorRed
+			}
+			if isSatWorkersLine {
+				if r.isMaxLenReachedForMinorPlots(width, r.wks.Data[workersLineKey]) {
+					r.wks.Data[workersLineKey] = r.wks.Data[workersLineKey][1:]
+				}
+				r.wks.Data[workersLineKey] = append(r.wks.Data[workersLineKey], w)
+			}
+
+			r.tst.Percent = int(time.Since(r.collector.StartedAt()).Milliseconds() / (r.cfg.DurationValue / 100).Milliseconds())
+			r.tst.Label = fmt.Sprintf(
+				"%v%% (remaining time %v)",
+				time.Since(r.collector.StartedAt()).Milliseconds()/(r.cfg.DurationValue.Milliseconds()/100),
+				strings.Split((r.cfg.DurationValue - time.Since(r.collector.StartedAt())).String(), ".")[0]+"s",
+			)
+
+			var items = []ui.Drawable{r.tst, r.inf, r.log}
 			if len(r.rps.Data) > 0 {
 				items = append(items, r.rps)
 			}
@@ -272,6 +314,9 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 			}
 			if len(r.htp.Data) > 0 {
 				items = append(items, r.htp)
+			}
+			if len(r.wks.Data) > 0 {
+				items = append(items, r.wks)
 			}
 
 			ui.Render(items...)
@@ -367,6 +412,23 @@ func (r *RendererV2Service) initHttpPoolPlot(width, height int) *widgets.Plot {
 	return plot
 }
 
+func (r *RendererV2Service) initWorkersPlot(width, height int) *widgets.Plot {
+	plot := widgets.NewPlot()
+	plot.Title = "Workers"
+	plot.AxesColor = ui.ColorWhite
+
+	plot.Data = make([][]float64, 0, 1)
+
+	plot.SetRect(
+		int(math.Round((float64(width)/100)*60)),
+		int(math.Round((float64(height)/100)*40)),
+		int(math.Round((float64(width)/100)*100)),
+		int(math.Round((float64(height)/100)*60)),
+	)
+
+	return plot
+}
+
 func (r *RendererV2Service) initLogsList(width, height int) *widgets.List {
 	logs := widgets.NewList()
 	logs.Title = "Logs"
@@ -381,6 +443,42 @@ func (r *RendererV2Service) initLogsList(width, height int) *widgets.List {
 		int(math.Round((float64(height)/100)*100)),
 	)
 	return logs
+}
+
+func (r *RendererV2Service) initDurationGauge(width, height int) *widgets.Gauge {
+	g := widgets.NewGauge()
+	g.Title = "Test duration"
+	g.SetRect(
+		int(math.Round((float64(width)/100)*60)),
+		int(math.Round((float64(height)/100)*60)),
+		int(math.Round((float64(width)/100)*100)),
+		int(math.Round((float64(height)/100)*70)),
+	)
+
+	g.Percent = int(time.Since(r.collector.StartedAt()).Milliseconds() / (r.cfg.DurationValue / 100).Milliseconds())
+	g.Label = fmt.Sprintf(
+		"%v%% (remeining time %v)",
+		time.Since(r.collector.StartedAt())/(r.cfg.DurationValue/100),
+		r.cfg.DurationValue-time.Since(r.collector.StartedAt()),
+	)
+
+	return g
+}
+
+func (r *RendererV2Service) initInfoParagraph(width, height int) *widgets.Paragraph {
+	p := widgets.NewParagraph()
+	p.Title = "Info"
+	p.Text = "Press [CTRL+C/Z](fg:red,mode:bold) or [q](fg:red,mode:bold) for exit.\n\n" +
+		"[Green line](fg:green,mode:bold) is a positive values, " +
+		"[red line](fg:red,mode:bold) is a negative."
+	p.SetRect(
+		int(math.Round((float64(width)/100)*60)),
+		int(math.Round((float64(height)/100)*70)),
+		int(math.Round((float64(width)/100)*100)),
+		int(math.Round((float64(height)/100)*80)),
+	)
+	p.BorderStyle.Fg = ui.ColorYellow
+	return p
 }
 
 func (r *RendererV2Service) summary() error {
