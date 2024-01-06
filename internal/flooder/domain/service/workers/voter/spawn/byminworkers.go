@@ -7,6 +7,6 @@ import (
 
 func ByMinWorkers() func(cfg *config.Config, collector statservice.Collector) bool {
 	return func(cfg *config.Config, collector statservice.Collector) bool {
-		return cfg.InitWorkersNum > collector.Workers()
+		return cfg.MinWorkers > collector.Workers()
 	}
 }
