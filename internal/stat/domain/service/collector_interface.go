@@ -49,4 +49,6 @@ type Collector interface {
 	SetHttpClientPoolBusy()
 	HttpClientPoolTotal() int64
 	SetHttpClientPoolTotal()
+	HttpClientOutOfPool() int64
+	SetHttpClientOutOfPool()
 }
