@@ -67,6 +67,7 @@ func (c *CollectorService) Run(wg *sync.WaitGroup) {
 			c.setRPS()
 			c.SetHttpClientPoolBusy()
 			c.SetHttpClientPoolTotal()
+			c.SetHttpClientOutOfPool()
 		}
 	}
 }
@@ -301,4 +302,12 @@ func (c *CollectorService) HttpClientPoolTotal() int64 {
 
 func (c *CollectorService) SetHttpClientPoolTotal() {
 	c.currentMetric().SetHttpClientPoolTotal(c.httpClient.Total())
+}
+
+func (c *CollectorService) HttpClientOutOfPool() int64 {
+	return c.currentMetric().HttpClientOutOfPool()
+}
+
+func (c *CollectorService) SetHttpClientOutOfPool() {
+	c.currentMetric().SetHttpClientOutOfPool(c.httpClient.OutOfPool())
 }
