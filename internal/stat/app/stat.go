@@ -2,6 +2,7 @@ package stat
 
 import (
 	"context"
+	"fmt"
 	"github.com/Borislavv/go-ddos/config"
 	displaymodel "github.com/Borislavv/go-ddos/internal/display/domain/model"
 	displayservice "github.com/Borislavv/go-ddos/internal/display/domain/service"
@@ -134,12 +135,14 @@ func (s *App) buildRow(percentile int64, metric *statmodel.Metrics) []string {
 		metric.AvgSuccessDuration().String(),
 		metric.AvgFailedDuration().String(),
 		strconv.FormatInt(percentile, 10) + " of " + strconv.FormatInt(s.collector.Stages(), 10),
-		strconv.FormatInt(s.collector.HttpClientPoolBusy(), 10) + " / " + strconv.FormatInt(s.collector.HttpClientPoolTotal(), 10),
+		strconv.FormatInt(s.collector.HttpClientPoolBusy(), 10) + " / " +
+			strconv.FormatInt(s.collector.HttpClientPoolTotal(), 10) + s.buildOutsideOfPool(),
 		strconv.Itoa(runtime.NumGoroutine()),
 	}
 }
 
 func (s *App) buildSummaryRow() []string {
+
 	return []string{
 		s.collector.SummaryDuration().String(),
 		strconv.FormatInt(s.collector.SummaryRPS(), 10),
@@ -151,7 +154,16 @@ func (s *App) buildSummaryRow() []string {
 		s.collector.SummaryAvgSuccessRequestsDuration().String(),
 		s.collector.SummaryAvgFailedRequestsDuration().String(),
 		"All",
-		strconv.FormatInt(s.collector.HttpClientPoolBusy(), 10) + " / " + strconv.FormatInt(s.collector.HttpClientPoolTotal(), 10),
+		strconv.FormatInt(s.collector.HttpClientPoolBusy(), 10) + " / " +
+			strconv.FormatInt(s.collector.HttpClientPoolTotal(), 10) + s.buildOutsideOfPool(),
 		strconv.Itoa(runtime.NumGoroutine()),
 	}
+}
+
+func (s *App) buildOutsideOfPool() string {
+	var outside string
+	if s.collector.HttpClientOutOfPool() > 0 {
+		outside = fmt.Sprintf(" (OUTSIDE: %d)", s.collector.HttpClientOutOfPool())
+	}
+	return outside
 }
