@@ -53,7 +53,7 @@ type RendererV2Service struct {
 
 	grt       *widgets.Plot
 	grtTs     *widgets.Paragraph
-	drtTsData []string
+	grtTsData []string
 
 	htp       *widgets.Plot
 	htpTs     *widgets.Paragraph
@@ -97,12 +97,9 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 		width, height = widthThreshold, heightThreshold
 	}
 	totalDelimitersNumForMainCharts = int(math.Round((((float64(width) / 100) * 59) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
-	totalDelimitersNumForMinorCharts = int(math.Round((((float64(width) / 100) * 39) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
+	totalDelimitersNumForMinorCharts = int(math.Round((((float64(width) / 100) * 40) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
 
 	r.log = r.initLogsList(width, height)
-	r.grt = r.initGoroutinesPlot(width, height)
-	r.htp = r.initHttpPoolPlot(width, height)
-	r.wks = r.initWorkersPlot(width, height)
 	r.tst = r.initDurationGauge(width, height)
 	r.inf = r.initInfoParagraph(width, height)
 
@@ -111,6 +108,12 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 
 	r.dur = r.initDurPlot(width, height)
 	r.durTs = r.initDurTimestampXosParagraph(width, height)
+
+	r.grt = r.initGoroutinesPlot(width, height)
+	r.grtTs = r.initGoroutinesTimestampXosParagraph(width, height)
+
+	r.htp = r.initHttpPoolPlot(width, height)
+	r.wks = r.initWorkersPlot(width, height)
 
 	ticker := time.NewTicker(renderTickDur)
 	defer ticker.Stop()
@@ -150,7 +153,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				width, height = payload.Width, payload.Height
 
 				totalDelimitersNumForMainCharts = int(math.Round((((float64(width) / 100) * 59) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
-				totalDelimitersNumForMinorCharts = int(math.Round((((float64(width) / 100) * 39) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
+				totalDelimitersNumForMinorCharts = int(math.Round((((float64(width) / 100) * 40) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
 
 				// resize RPS chart
 				r.rps.SetRect(
@@ -189,6 +192,13 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(width)/100)*100)),
 					int(math.Round((float64(height)/100)*20)),
 				)
+				r.grtTs.SetRect(
+					int(math.Round((float64(width)/100)*60)),
+					int(math.Round((float64(height)/100)*16)),
+					int(math.Round((float64(width)/100)*100)),
+					int(math.Round((float64(height)/100)*20)),
+				)
+				r.renewGoroutinesTimestampXosParagraph()
 
 				// resize http client pool chart
 				r.htp.SetRect(
@@ -291,6 +301,10 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					r.dur.Data[failedDurationLineKey] = r.dur.Data[failedDurationLineKey][1:]
 				}
 				r.dur.Data[failedDurationLineKey] = append(r.dur.Data[failedDurationLineKey], f)
+
+				r.durTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+				r.durTsData[len(r.durTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.durTsData) - 1)).Format("15:04:05")
+				r.durTs.Text = strings.Join(r.durTsData, "")
 			}
 
 			// number of goroutines
@@ -303,10 +317,18 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				r.grt.Data[goroutinesLineLey] = append(r.grt.Data[goroutinesLineLey], 0)
 				r.grt.LineColors[goroutinesLineLey] = ui.ColorGreen
 			}
-			if r.isMaxLenReachedForMinorPlots(width, r.grt.Data[goroutinesLineLey]) {
-				r.grt.Data[goroutinesLineLey] = r.grt.Data[goroutinesLineLey][1:]
+			if isSatGoroutinesLine {
+				if r.isMaxLenReachedForMinorPlots(width, r.grt.Data[goroutinesLineLey]) {
+					r.grt.Data[goroutinesLineLey] = r.grt.Data[goroutinesLineLey][1:]
+				}
+				r.grt.Data[goroutinesLineLey] = append(r.grt.Data[goroutinesLineLey], g)
+
+				if len(r.grtTsData) > 0 {
+					r.grtTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+					r.grtTsData[len(r.grtTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.grtTsData) - 1)).Format("15:04:05")
+				}
+				r.grtTs.Text = strings.Join(r.grtTsData, "")
 			}
-			r.grt.Data[goroutinesLineLey] = append(r.grt.Data[goroutinesLineLey], g)
 
 			// busy http clients into the pool
 			b := float64(r.collector.HttpClientPoolBusy())
@@ -377,6 +399,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 			}
 			if len(r.grt.Data) > 0 {
 				items = append(items, r.grt)
+				items = append(items, r.grtTs)
 			}
 			if len(r.htp.Data) > 0 {
 				items = append(items, r.htp)
@@ -519,6 +542,38 @@ func (r *RendererV2Service) initGoroutinesPlot(width, height int) *widgets.Plot 
 	)
 
 	return plot
+}
+
+func (r *RendererV2Service) initGoroutinesTimestampXosParagraph(width, height int) *widgets.Paragraph {
+	p := widgets.NewParagraph()
+	p.Border = true
+	p.WrapText = true
+	p.TextStyle.Fg = ui.ColorYellow
+
+	r.grtTsData = make([]string, 0, totalDelimitersNumForMinorCharts+2)
+	for j := 0; j < cap(r.grtTsData)-1; j++ {
+		r.grtTsData = append(r.grtTsData, timestampDelimiter)
+	}
+
+	p.SetRect(
+		int(math.Round((float64(width)/100)*60)),
+		int(math.Round((float64(height)/100)*16)),
+		int(math.Round((float64(width)/100)*100)),
+		int(math.Round((float64(height)/100)*20)),
+	)
+	return p
+}
+
+func (r *RendererV2Service) renewGoroutinesTimestampXosParagraph() {
+	r.grtTsData = make([]string, 0, totalDelimitersNumForMinorCharts+2)
+	for j := 0; j < cap(r.grtTsData)-1; j++ {
+		r.grtTsData = append(r.grtTsData, timestampDelimiter)
+	}
+	if len(r.grtTsData) > 0 {
+		r.grtTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+		r.grtTsData[len(r.grtTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.grtTsData) - 1)).Format("15:04:05")
+	}
+	r.grtTs.Text = strings.Join(r.grtTsData, "")
 }
 
 func (r *RendererV2Service) initHttpPoolPlot(width, height int) *widgets.Plot {
