@@ -86,6 +86,20 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
 
+	var rpsLineLey int
+	var goroutinesLineLey int
+	var httpPoolBusyClientsLineKey int
+	var httpPoolOutOfPoolClientLineKey int
+	var failedDurationLineKey int
+	var successDurationLineKey int
+
+	var isSatRPSLine bool
+	var isSatGoroutinesLine bool
+	var isSatHttpPoolBusyClientsLine bool
+	var isSatHttpOutOfPoolClientsLine bool
+	var isSatFailedDurationLine bool
+	var isSatSuccessDurationLine bool
+
 	eventCh := ui.PollEvents()
 	for {
 		select {
@@ -146,42 +160,121 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 			}
 		case <-ticker.C:
 			// avg rps number
-			if r.isMaxLenReachedForMainPlots(width, r.rps.Data[rps]) {
-				r.rps.Data[rps] = r.rps.Data[rps][1:]
+			p := float64(r.collector.RPS())
+			if p > 0 && !isSatRPSLine {
+				isSatRPSLine = true
+
+				r.rps.Data = append(r.rps.Data, make([]float64, 0, int(math.Round((float64(width)/100)*60))))
+				rpsLineLey = len(r.rps.Data) - 1
+				r.rps.Data[rpsLineLey] = append(r.rps.Data[rpsLineLey], 0)
+				r.rps.LineColors[rpsLineLey] = ui.ColorGreen
+
 			}
-			r.rps.Data[rps] = append(r.rps.Data[rps], float64(r.collector.RPS()))
+			if isSatRPSLine {
+				if r.isMaxLenReachedForMainPlots(width, r.rps.Data[rpsLineLey]) {
+					r.rps.Data[rpsLineLey] = r.rps.Data[rpsLineLey][1:]
+				}
+				r.rps.Data[rpsLineLey] = append(r.rps.Data[rpsLineLey], p)
+			}
 
 			// avg success requests duration
-			if r.isMaxLenReachedForMainPlots(width, r.dur.Data[durSuccess]) {
-				r.dur.Data[durSuccess] = r.dur.Data[durSuccess][1:]
+			s := float64(r.collector.AvgSuccessRequestsDuration().Milliseconds())
+			if s > 0 && !isSatSuccessDurationLine {
+				isSatSuccessDurationLine = true
+
+				r.dur.Data = append(r.dur.Data, make([]float64, 0, (width/100)*60))
+				successDurationLineKey = len(r.dur.Data) - 1
+				r.dur.Data[successDurationLineKey] = append(r.dur.Data[successDurationLineKey], 0)
+				r.dur.LineColors[successDurationLineKey] = ui.ColorGreen
 			}
-			r.dur.Data[durSuccess] = append(r.dur.Data[durSuccess], float64(r.collector.AvgSuccessRequestsDuration().Milliseconds()))
+			if isSatSuccessDurationLine {
+				if r.isMaxLenReachedForMainPlots(width, r.dur.Data[successDurationLineKey]) {
+					r.dur.Data[successDurationLineKey] = r.dur.Data[successDurationLineKey][1:]
+				}
+				r.dur.Data[successDurationLineKey] = append(r.dur.Data[successDurationLineKey], s)
+			}
 
 			// avg failed requests duration
-			if r.isMaxLenReachedForMainPlots(width, r.dur.Data[durFailed]) {
-				r.dur.Data[durFailed] = r.dur.Data[durFailed][1:]
+			f := float64(r.collector.AvgFailedRequestsDuration().Milliseconds())
+			if f > 0 && !isSatFailedDurationLine {
+				isSatFailedDurationLine = true
+
+				r.dur.Data = append(r.dur.Data, make([]float64, 0, (width/100)*60))
+				failedDurationLineKey = len(r.dur.Data) - 1
+				r.dur.Data[failedDurationLineKey] = append(r.dur.Data[failedDurationLineKey], 0)
+				r.dur.LineColors[failedDurationLineKey] = ui.ColorRed
 			}
-			r.dur.Data[durFailed] = append(r.dur.Data[durFailed], float64(r.collector.AvgFailedRequestsDuration().Milliseconds()))
+			if isSatFailedDurationLine {
+				if r.isMaxLenReachedForMainPlots(width, r.dur.Data[failedDurationLineKey]) {
+					r.dur.Data[failedDurationLineKey] = r.dur.Data[failedDurationLineKey][1:]
+				}
+				r.dur.Data[failedDurationLineKey] = append(r.dur.Data[failedDurationLineKey], f)
+			}
 
 			// number of goroutines
-			if r.isMaxLenReachedForMinorPlots(width, r.grt.Data[goroutines]) {
-				r.grt.Data[goroutines] = r.grt.Data[goroutines][1:]
+			g := float64(runtime.NumGoroutine())
+			if g > 0 && !isSatGoroutinesLine {
+				isSatGoroutinesLine = true
+
+				r.grt.Data = append(r.grt.Data, make([]float64, 0, (width/100)*40))
+				goroutinesLineLey = len(r.grt.Data) - 1
+				r.grt.Data[goroutinesLineLey] = append(r.grt.Data[goroutinesLineLey], 0)
+				r.grt.LineColors[goroutinesLineLey] = ui.ColorGreen
 			}
-			r.grt.Data[goroutines] = append(r.grt.Data[goroutines], float64(runtime.NumGoroutine()))
-
-			ui.Render(r.rps, r.dur, r.grt, r.log)
-
-			if r.isMaxLenReachedForMinorPlots(width, r.htp.Data[httpPoolBusy]) {
-				r.htp.Data[httpPoolBusy] = r.htp.Data[httpPoolBusy][1:]
+			if r.isMaxLenReachedForMinorPlots(width, r.grt.Data[goroutinesLineLey]) {
+				r.grt.Data[goroutinesLineLey] = r.grt.Data[goroutinesLineLey][1:]
 			}
-			r.htp.Data[httpPoolBusy] = append(r.htp.Data[httpPoolBusy], float64(r.collector.HttpClientPoolBusy()))
+			r.grt.Data[goroutinesLineLey] = append(r.grt.Data[goroutinesLineLey], g)
 
-			if r.isMaxLenReachedForMinorPlots(width, r.htp.Data[httpPoolOutOfPool]) {
-				r.htp.Data[httpPoolOutOfPool] = r.htp.Data[httpPoolOutOfPool][1:]
+			// busy http clients into the pool
+			b := float64(r.collector.HttpClientPoolBusy())
+			if b > 0 && !isSatHttpPoolBusyClientsLine {
+				isSatHttpPoolBusyClientsLine = true
+
+				r.htp.Data = append(r.htp.Data, make([]float64, 0, (width/100)*40))
+				httpPoolBusyClientsLineKey = len(r.htp.Data) - 1
+				r.htp.Data[httpPoolBusyClientsLineKey] = append(r.htp.Data[httpPoolBusyClientsLineKey], 0)
+				r.htp.LineColors[httpPoolBusyClientsLineKey] = ui.ColorGreen
 			}
-			r.htp.Data[httpPoolOutOfPool] = append(r.htp.Data[httpPoolOutOfPool], float64(r.collector.HttpClientOutOfPool()))
+			if isSatHttpPoolBusyClientsLine {
+				if r.isMaxLenReachedForMinorPlots(width, r.htp.Data[httpPoolBusyClientsLineKey]) {
+					r.htp.Data[httpPoolBusyClientsLineKey] = r.htp.Data[httpPoolBusyClientsLineKey][1:]
+				}
+				r.htp.Data[httpPoolBusyClientsLineKey] = append(r.htp.Data[httpPoolBusyClientsLineKey], b)
+			}
 
-			ui.Render(r.rps, r.dur, r.grt, r.htp, r.log)
+			// http client which out of pool (extra clients)
+			o := float64(r.collector.HttpClientOutOfPool())
+			if o > 0 && !isSatHttpOutOfPoolClientsLine {
+				isSatHttpOutOfPoolClientsLine = true
+
+				r.htp.Data = append(r.htp.Data, make([]float64, 0, (width/100)*40))
+				httpPoolOutOfPoolClientLineKey = len(r.htp.Data) - 1
+				r.htp.Data[httpPoolOutOfPoolClientLineKey] = append(r.htp.Data[httpPoolOutOfPoolClientLineKey], 0)
+				r.htp.LineColors[httpPoolOutOfPoolClientLineKey] = ui.ColorRed
+			}
+			if isSatHttpOutOfPoolClientsLine {
+				if r.isMaxLenReachedForMinorPlots(width, r.htp.Data[httpPoolOutOfPoolClientLineKey]) {
+					r.htp.Data[httpPoolOutOfPoolClientLineKey] = r.htp.Data[httpPoolOutOfPoolClientLineKey][1:]
+				}
+				r.htp.Data[httpPoolOutOfPoolClientLineKey] = append(r.htp.Data[httpPoolOutOfPoolClientLineKey], o)
+			}
+
+			var items = []ui.Drawable{r.log}
+			if len(r.rps.Data) > 0 {
+				items = append(items, r.rps)
+			}
+			if len(r.dur.Data) > 0 {
+				items = append(items, r.dur)
+			}
+			if len(r.grt.Data) > 0 {
+				items = append(items, r.grt)
+			}
+			if len(r.htp.Data) > 0 {
+				items = append(items, r.htp)
+			}
+
+			ui.Render(items...)
 		}
 	}
 }
@@ -211,10 +304,7 @@ func (r *RendererV2Service) initRpsPlot(width, height int) *widgets.Plot {
 	plot.Title = "RPS"
 	plot.AxesColor = ui.ColorWhite
 
-	plot.Data = make([][]float64, 1)
-	plot.Data[rps] = make([]float64, 0, int(math.Round((float64(width)/100)*60)))
-	plot.Data[rps] = append(plot.Data[rps], 0)
-	plot.LineColors[rps] = ui.ColorGreen
+	plot.Data = make([][]float64, 0, 1)
 
 	plot.SetRect(
 		0,
@@ -231,16 +321,7 @@ func (r *RendererV2Service) initDurPlot(width, height int) *widgets.Plot {
 	plot.Title = "Duration"
 	plot.AxesColor = ui.ColorWhite
 
-	plot.Data = make([][]float64, 2)
-
-	plot.Data[durSuccess] = make([]float64, 0, (width/100)*60)
-	plot.Data[durFailed] = make([]float64, 0, (width/100)*60)
-
-	plot.Data[durSuccess] = append(plot.Data[durSuccess], 0)
-	plot.Data[durFailed] = append(plot.Data[durFailed], 0)
-
-	plot.LineColors[durSuccess] = ui.ColorGreen
-	plot.LineColors[durFailed] = ui.ColorRed
+	plot.Data = make([][]float64, 0, 2)
 
 	plot.SetRect(
 		0,
@@ -257,10 +338,7 @@ func (r *RendererV2Service) initGoroutinesPlot(width, height int) *widgets.Plot 
 	plot.Title = "Goroutines"
 	plot.AxesColor = ui.ColorWhite
 
-	plot.Data = make([][]float64, 1)
-	plot.Data[goroutines] = make([]float64, 0, (width/100)*40)
-	plot.Data[goroutines] = append(plot.Data[goroutines], 0)
-	plot.LineColors[goroutines] = ui.ColorGreen
+	plot.Data = make([][]float64, 0, 1)
 
 	plot.SetRect(
 		int(math.Round((float64(width)/100)*60)),
@@ -277,15 +355,7 @@ func (r *RendererV2Service) initHttpPoolPlot(width, height int) *widgets.Plot {
 	plot.Title = "HttpPool"
 	plot.AxesColor = ui.ColorWhite
 
-	plot.Data = make([][]float64, 2)
-	plot.Data[httpPoolBusy] = make([]float64, 0, (width/100)*40)
-	plot.Data[httpPoolOutOfPool] = make([]float64, 0, (width/100)*40)
-
-	plot.Data[httpPoolBusy] = append(plot.Data[httpPoolBusy], 0)
-	plot.Data[httpPoolOutOfPool] = append(plot.Data[httpPoolOutOfPool], 0)
-
-	plot.LineColors[httpPoolOutOfPool] = ui.ColorRed
-	plot.LineColors[httpPoolBusy] = ui.ColorGreen
+	plot.Data = make([][]float64, 0, 2)
 
 	plot.SetRect(
 		int(math.Round((float64(width)/100)*60)),
