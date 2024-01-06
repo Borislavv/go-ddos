@@ -113,7 +113,10 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 	r.grtTs = r.initGoroutinesTimestampXosParagraph(width, height)
 
 	r.htp = r.initHttpPoolPlot(width, height)
+	r.htpTs = r.initHttpPoolTimestampXosParagraph(width, height)
+
 	r.wks = r.initWorkersPlot(width, height)
+	r.wksTs = r.initWorkersTimestampXosParagraph(width, height)
 
 	ticker := time.NewTicker(renderTickDur)
 	defer ticker.Stop()
@@ -194,7 +197,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				)
 				r.grtTs.SetRect(
 					int(math.Round((float64(width)/100)*60)),
-					int(math.Round((float64(height)/100)*16)),
+					int(math.Round((float64(height)/100)*15)),
 					int(math.Round((float64(width)/100)*100)),
 					int(math.Round((float64(height)/100)*20)),
 				)
@@ -207,6 +210,13 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(width)/100)*100)),
 					int(math.Round((float64(height)/100)*40)),
 				)
+				r.htpTs.SetRect(
+					int(math.Round((float64(width)/100)*60)),
+					int(math.Round((float64(height)/100)*34)),
+					int(math.Round((float64(width)/100)*100)),
+					int(math.Round((float64(height)/100)*40)),
+				)
+				r.renewHttpPoolTimestampXosParagraph()
 
 				// resize workers chart
 				r.wks.SetRect(
@@ -215,6 +225,13 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(width)/100)*100)),
 					int(math.Round((float64(height)/100)*60)),
 				)
+				r.wksTs.SetRect(
+					int(math.Round((float64(width)/100)*60)),
+					int(math.Round((float64(height)/100)*55)),
+					int(math.Round((float64(width)/100)*100)),
+					int(math.Round((float64(height)/100)*60)),
+				)
+				r.renewWorkersTimestampXosParagraph()
 
 				// resize logs paragraph
 				r.log.SetRect(
@@ -345,6 +362,12 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					r.htp.Data[httpPoolBusyClientsLineKey] = r.htp.Data[httpPoolBusyClientsLineKey][1:]
 				}
 				r.htp.Data[httpPoolBusyClientsLineKey] = append(r.htp.Data[httpPoolBusyClientsLineKey], b)
+
+				if len(r.htpTsData) > 0 {
+					r.htpTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+					r.htpTsData[len(r.htpTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.htpTsData) - 1)).Format("15:04:05")
+				}
+				r.htpTs.Text = strings.Join(r.htpTsData, "")
 			}
 
 			// http client which out of pool (extra clients)
@@ -362,6 +385,12 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					r.htp.Data[httpPoolOutOfPoolClientLineKey] = r.htp.Data[httpPoolOutOfPoolClientLineKey][1:]
 				}
 				r.htp.Data[httpPoolOutOfPoolClientLineKey] = append(r.htp.Data[httpPoolOutOfPoolClientLineKey], o)
+
+				if len(r.htpTsData) > 0 {
+					r.htpTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+					r.htpTsData[len(r.htpTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.htpTsData) - 1)).Format("15:04:05")
+				}
+				r.htpTs.Text = strings.Join(r.htpTsData, "")
 			}
 
 			// workers
@@ -379,6 +408,12 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					r.wks.Data[workersLineKey] = r.wks.Data[workersLineKey][1:]
 				}
 				r.wks.Data[workersLineKey] = append(r.wks.Data[workersLineKey], w)
+
+				if len(r.wksTsData) > 0 {
+					r.wksTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+					r.wksTsData[len(r.wksTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.wksTsData) - 1)).Format("15:04:05")
+				}
+				r.wksTs.Text = strings.Join(r.wksTsData, "")
 			}
 
 			r.tst.Percent = int(time.Since(r.collector.StartedAt()).Milliseconds() / (r.cfg.DurationValue / 100).Milliseconds())
@@ -403,9 +438,11 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 			}
 			if len(r.htp.Data) > 0 {
 				items = append(items, r.htp)
+				items = append(items, r.htpTs)
 			}
 			if len(r.wks.Data) > 0 {
 				items = append(items, r.wks)
+				items = append(items, r.wksTs)
 			}
 
 			ui.Render(items...)
@@ -557,7 +594,7 @@ func (r *RendererV2Service) initGoroutinesTimestampXosParagraph(width, height in
 
 	p.SetRect(
 		int(math.Round((float64(width)/100)*60)),
-		int(math.Round((float64(height)/100)*16)),
+		int(math.Round((float64(height)/100)*15)),
 		int(math.Round((float64(width)/100)*100)),
 		int(math.Round((float64(height)/100)*20)),
 	)
@@ -593,6 +630,38 @@ func (r *RendererV2Service) initHttpPoolPlot(width, height int) *widgets.Plot {
 	return plot
 }
 
+func (r *RendererV2Service) initHttpPoolTimestampXosParagraph(width, height int) *widgets.Paragraph {
+	p := widgets.NewParagraph()
+	p.Border = true
+	p.WrapText = true
+	p.TextStyle.Fg = ui.ColorYellow
+
+	r.htpTsData = make([]string, 0, totalDelimitersNumForMinorCharts+2)
+	for j := 0; j < cap(r.htpTsData)-1; j++ {
+		r.htpTsData = append(r.htpTsData, timestampDelimiter)
+	}
+
+	p.SetRect(
+		int(math.Round((float64(width)/100)*60)),
+		int(math.Round((float64(height)/100)*34)),
+		int(math.Round((float64(width)/100)*100)),
+		int(math.Round((float64(height)/100)*40)),
+	)
+	return p
+}
+
+func (r *RendererV2Service) renewHttpPoolTimestampXosParagraph() {
+	r.htpTsData = make([]string, 0, totalDelimitersNumForMinorCharts+2)
+	for j := 0; j < cap(r.htpTsData)-1; j++ {
+		r.htpTsData = append(r.htpTsData, timestampDelimiter)
+	}
+	if len(r.htpTsData) > 0 {
+		r.htpTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+		r.htpTsData[len(r.htpTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.htpTsData) - 1)).Format("15:04:05")
+	}
+	r.htpTs.Text = strings.Join(r.htpTsData, "")
+}
+
 func (r *RendererV2Service) initWorkersPlot(width, height int) *widgets.Plot {
 	plot := widgets.NewPlot()
 	plot.Title = "Workers"
@@ -608,6 +677,38 @@ func (r *RendererV2Service) initWorkersPlot(width, height int) *widgets.Plot {
 	)
 
 	return plot
+}
+
+func (r *RendererV2Service) initWorkersTimestampXosParagraph(width, height int) *widgets.Paragraph {
+	p := widgets.NewParagraph()
+	p.Border = true
+	p.WrapText = true
+	p.TextStyle.Fg = ui.ColorYellow
+
+	r.wksTsData = make([]string, 0, totalDelimitersNumForMinorCharts+2)
+	for j := 0; j < cap(r.wksTsData)-1; j++ {
+		r.wksTsData = append(r.wksTsData, timestampDelimiter)
+	}
+
+	p.SetRect(
+		int(math.Round((float64(width)/100)*60)),
+		int(math.Round((float64(height)/100)*55)),
+		int(math.Round((float64(width)/100)*100)),
+		int(math.Round((float64(height)/100)*60)),
+	)
+	return p
+}
+
+func (r *RendererV2Service) renewWorkersTimestampXosParagraph() {
+	r.wksTsData = make([]string, 0, totalDelimitersNumForMinorCharts+2)
+	for j := 0; j < cap(r.wksTsData)-1; j++ {
+		r.wksTsData = append(r.wksTsData, timestampDelimiter)
+	}
+	if len(r.wksTsData) > 0 {
+		r.wksTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+		r.wksTsData[len(r.wksTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.wksTsData) - 1)).Format("15:04:05")
+	}
+	r.wksTs.Text = strings.Join(r.wksTsData, "")
 }
 
 func (r *RendererV2Service) initLogsList(width, height int) *widgets.List {
