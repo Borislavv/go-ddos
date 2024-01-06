@@ -18,10 +18,20 @@ import (
 )
 
 const (
-	rps        = 0
+	widthThreshold  = 35
+	heightThreshold = 15
+)
+
+const (
+	rps = 0
+
 	durSuccess = 0
 	durFailed  = 1
+
 	goroutines = 0
+
+	httpPoolBusy      = 0
+	httpPoolOutOfPool = 1
 )
 
 type RendererV2Service struct {
@@ -33,6 +43,7 @@ type RendererV2Service struct {
 	dur *widgets.Plot
 	rps *widgets.Plot
 	grt *widgets.Plot
+	htp *widgets.Plot
 }
 
 func NewRendererV2Service(
@@ -62,11 +73,15 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 	defer ui.Close()
 
 	width, height := ui.TerminalDimensions()
+	if width < widthThreshold || height < heightThreshold {
+		width, height = widthThreshold, heightThreshold
+	}
 
 	r.dur = r.initDurPlot(width, height)
 	r.log = r.initLogsList(width, height)
 	r.grt = r.initGoroutinesPlot(width, height)
 	r.rps = r.initRpsPlot(width, height)
+	r.htp = r.initHttpPoolPlot(width, height)
 
 	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
@@ -83,6 +98,13 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				return
 			case "<Resize>":
 				payload := e.Payload.(ui.Resize)
+				if payload.Width < widthThreshold || payload.Height < heightThreshold {
+					_, _ = fmt.Fprintf(
+						r, "warning: minimum size [%dx%d] was reached", widthThreshold, heightThreshold,
+					)
+					continue
+				}
+
 				width, height = payload.Width, payload.Height
 
 				r.rps.SetRect(
@@ -102,15 +124,22 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 				r.grt.SetRect(
 					int(math.Round((float64(width)/100)*60)),
 					0,
-					width,
+					int(math.Round((float64(width)/100)*100)),
 					int(math.Round((float64(height)/100)*20)),
+				)
+
+				r.htp.SetRect(
+					int(math.Round((float64(width)/100)*60)),
+					int(math.Round((float64(height)/100)*20)),
+					int(math.Round((float64(width)/100)*100)),
+					int(math.Round((float64(height)/100)*40)),
 				)
 
 				r.log.SetRect(
 					0,
 					int(math.Round((float64(height)/100)*80)),
-					width,
-					height,
+					int(math.Round((float64(width)/100)*100)),
+					int(math.Round((float64(height)/100)*100)),
 				)
 
 				ui.Clear()
@@ -132,13 +161,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 			if r.isMaxLenReachedForMainPlots(width, r.dur.Data[durFailed]) {
 				r.dur.Data[durFailed] = r.dur.Data[durFailed][1:]
 			}
-			f := float64(r.collector.AvgFailedRequestsDuration().Milliseconds())
-			if f == 0 {
-				r.dur.LineColors[durFailed] = ui.ColorBlack
-			} else {
-				r.dur.LineColors[durFailed] = ui.ColorRed
-			}
-			r.dur.Data[durFailed] = append(r.dur.Data[durFailed], f)
+			r.dur.Data[durFailed] = append(r.dur.Data[durFailed], float64(r.collector.AvgFailedRequestsDuration().Milliseconds()))
 
 			// number of goroutines
 			if r.isMaxLenReachedForMinorPlots(width, r.grt.Data[goroutines]) {
@@ -147,6 +170,18 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 			r.grt.Data[goroutines] = append(r.grt.Data[goroutines], float64(runtime.NumGoroutine()))
 
 			ui.Render(r.rps, r.dur, r.grt, r.log)
+
+			if r.isMaxLenReachedForMinorPlots(width, r.htp.Data[httpPoolBusy]) {
+				r.htp.Data[httpPoolBusy] = r.htp.Data[httpPoolBusy][1:]
+			}
+			r.htp.Data[httpPoolBusy] = append(r.htp.Data[httpPoolBusy], float64(r.collector.HttpClientPoolBusy()))
+
+			if r.isMaxLenReachedForMinorPlots(width, r.htp.Data[httpPoolOutOfPool]) {
+				r.htp.Data[httpPoolOutOfPool] = r.htp.Data[httpPoolOutOfPool][1:]
+			}
+			r.htp.Data[httpPoolOutOfPool] = append(r.htp.Data[httpPoolOutOfPool], float64(r.collector.HttpClientOutOfPool()))
+
+			ui.Render(r.rps, r.dur, r.grt, r.htp, r.log)
 		}
 	}
 }
@@ -230,8 +265,33 @@ func (r *RendererV2Service) initGoroutinesPlot(width, height int) *widgets.Plot 
 	plot.SetRect(
 		int(math.Round((float64(width)/100)*60)),
 		0,
-		width,
+		int(math.Round((float64(width)/100)*100)),
 		int(math.Round((float64(height)/100)*20)),
+	)
+
+	return plot
+}
+
+func (r *RendererV2Service) initHttpPoolPlot(width, height int) *widgets.Plot {
+	plot := widgets.NewPlot()
+	plot.Title = "HttpPool"
+	plot.AxesColor = ui.ColorWhite
+
+	plot.Data = make([][]float64, 2)
+	plot.Data[httpPoolBusy] = make([]float64, 0, (width/100)*40)
+	plot.Data[httpPoolOutOfPool] = make([]float64, 0, (width/100)*40)
+
+	plot.Data[httpPoolBusy] = append(plot.Data[httpPoolBusy], 0)
+	plot.Data[httpPoolOutOfPool] = append(plot.Data[httpPoolOutOfPool], 0)
+
+	plot.LineColors[httpPoolOutOfPool] = ui.ColorRed
+	plot.LineColors[httpPoolBusy] = ui.ColorGreen
+
+	plot.SetRect(
+		int(math.Round((float64(width)/100)*60)),
+		int(math.Round((float64(height)/100)*20)),
+		int(math.Round((float64(width)/100)*100)),
+		int(math.Round((float64(height)/100)*40)),
 	)
 
 	return plot
@@ -247,8 +307,8 @@ func (r *RendererV2Service) initLogsList(width, height int) *widgets.List {
 	logs.SetRect(
 		0,
 		int(math.Round((float64(height)/100)*80)),
-		width,
-		height,
+		int(math.Round((float64(width)/100)*100)),
+		int(math.Round((float64(height)/100)*100)),
 	)
 	return logs
 }
