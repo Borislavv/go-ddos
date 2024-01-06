@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 type Config struct {
 	// URL is a string with target DDOS url.
 	URL string `arg:"-u,separate,env:URL,required"`
@@ -21,12 +23,31 @@ type Config struct {
 	LogHeaders []string `arg:"-h,separate,env:CATCH_HEADERS"`
 
 	// PoolInitSize is httpclient pool init. size.
-	PoolInitSize int `arg:"-i,env:HTTP_CLIENT_POOL_INIT_SIZE" default:"32"`
+	PoolInitSize int64 `arg:"-i,env:HTTP_CLIENT_POOL_INIT_SIZE" default:"32"`
 	// PoolMaxSize is httpclient pool max size.
-	PoolMaxSize int `arg:"-m,env:HTTP_CLIENT_POOL_MAX_SIZE"   default:"10240"`
+	PoolMaxSize int64 `arg:"-m,env:HTTP_CLIENT_POOL_MAX_SIZE"   default:"10240"`
+
+	// ToleranceCoefficient tell the application how much tolerance you can accept, since all values are very different
+	// and achieving absolute results is very difficult (for example, due to network latency).
+	// This will work as follows, for example, if we consider a strategy based on the average response time of
+	// successful requests (spawn_by_avg_duration), then the calculation will be as follows:
+	// average successful response time < target response time of successful requests * (1 - ToleranceCoefficient).
+	// Example:
+	// 	AvgSuccessResponseTime = 500ms
+	//  TargetAvgSuccessRequestsDuration = 450ms
+	//  AvgSuccessResponseTime * (1 - ToleranceCoefficient) = 450ms.
+	// In this case, spawn will not continue.
+	ToleranceCoefficient float64 `arg:"env:TOLERANCE_COEFFICIENT" default:"0.1"`
 
 	// ReqSenderSpawnInterval is using for spawn_by_interval strategy.
-	ReqSenderSpawnInterval string `arg:"-i,env:SPAWN_REQ_SENDER_INTERVAL"     default:"1m"`
+	ReqSenderSpawnInterval      string `arg:"-i,env:SPAWN_REQ_SENDER_INTERVAL" default:"1m"`
+	ReqSenderSpawnIntervalValue time.Duration
+
+	// TargetAvgSuccessRequestsDuration tells the target of average duration of success requests
+	// which used into the spawn_by_avg_duration strategy.
+	TargetAvgSuccessRequestsDuration      string        `arg:"env:TARGET_AVG_SUCCESS_REQUESTS_DURATION" default:"500ms"`
+	TargetAvgSuccessRequestsDurationValue time.Duration // will contain the value after config parsing
+
 	// VoteForSpawnReqSenderStrategy tells which approach will be used for spawn a new worker for send requests.
 	// Options:
 	// 	all 		 - means that all voters must vote for spawn a new worker.
