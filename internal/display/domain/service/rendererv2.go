@@ -19,8 +19,18 @@ import (
 )
 
 const (
+	timestampDelimiter = " | "
+	renderTickDur      = time.Millisecond * 100
+)
+
+const (
 	widthThreshold  = 35
 	heightThreshold = 15
+)
+
+var (
+	totalDelimitersNumForMainCharts  = 0
+	totalDelimitersNumForMinorCharts = 0
 )
 
 type RendererV2Service struct {
@@ -30,13 +40,28 @@ type RendererV2Service struct {
 	collector statservice.Collector
 
 	log *widgets.List
-	dur *widgets.Plot
-	rps *widgets.Plot
-	grt *widgets.Plot
-	htp *widgets.Plot
-	wks *widgets.Plot
 	tst *widgets.Gauge
 	inf *widgets.Paragraph
+
+	rps       *widgets.Plot
+	rpsTs     *widgets.Paragraph
+	rpsTsData []string
+
+	dur       *widgets.Plot
+	durTs     *widgets.Paragraph
+	durTsData []string
+
+	grt       *widgets.Plot
+	grtTs     *widgets.Paragraph
+	drtTsData []string
+
+	htp       *widgets.Plot
+	htpTs     *widgets.Paragraph
+	htpTsData []string
+
+	wks       *widgets.Plot
+	wksTs     *widgets.Paragraph
+	wksTsData []string
 }
 
 func NewRendererV2Service(
@@ -71,17 +96,23 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 	if width < widthThreshold || height < heightThreshold {
 		width, height = widthThreshold, heightThreshold
 	}
+	totalDelimitersNumForMainCharts = int(math.Round((((float64(width) / 100) * 59) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
+	totalDelimitersNumForMinorCharts = int(math.Round((((float64(width) / 100) * 39) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
 
-	r.dur = r.initDurPlot(width, height)
 	r.log = r.initLogsList(width, height)
 	r.grt = r.initGoroutinesPlot(width, height)
-	r.rps = r.initRpsPlot(width, height)
 	r.htp = r.initHttpPoolPlot(width, height)
 	r.wks = r.initWorkersPlot(width, height)
 	r.tst = r.initDurationGauge(width, height)
 	r.inf = r.initInfoParagraph(width, height)
 
-	ticker := time.NewTicker(time.Millisecond * 100)
+	r.rps = r.initRpsPlot(width, height)
+	r.rpsTs = r.initRpsTimestampXosParagraph(width, height)
+
+	r.dur = r.initDurPlot(width, height)
+	r.durTs = r.initDurTimestampXosParagraph(width, height)
+
+	ticker := time.NewTicker(renderTickDur)
 	defer ticker.Stop()
 
 	var rpsLineLey int
@@ -118,20 +149,40 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 
 				width, height = payload.Width, payload.Height
 
+				totalDelimitersNumForMainCharts = int(math.Round((((float64(width) / 100) * 59) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
+				totalDelimitersNumForMinorCharts = int(math.Round((((float64(width) / 100) * 39) - (2 * float64(len("15:04:05")))) / float64(len(timestampDelimiter))))
+
+				// resize RPS chart
 				r.rps.SetRect(
 					0,
 					0,
 					int(math.Round((float64(width)/100)*60)),
 					int(math.Round((float64(height)/100)*40)),
 				)
+				r.rpsTs.SetRect(
+					0,
+					int(math.Round((float64(height)/100)*34)),
+					int(math.Round((float64(width)/100)*60)),
+					int(math.Round((float64(height)/100)*40)),
+				)
+				r.renewRpsTimestampXosParagraph()
 
+				// resize avg request duration char
 				r.dur.SetRect(
 					0,
 					int(math.Round((float64(height)/100)*80)),
 					int(math.Round((float64(width)/100)*60)),
 					int(math.Round((float64(height)/100)*40)),
 				)
+				r.durTs.SetRect(
+					0,
+					int(math.Round((float64(height)/100)*74)),
+					int(math.Round((float64(width)/100)*60)),
+					int(math.Round((float64(height)/100)*80)),
+				)
+				r.renewDurTimestampXosParagraph()
 
+				// resize goroutines chart
 				r.grt.SetRect(
 					int(math.Round((float64(width)/100)*60)),
 					0,
@@ -139,6 +190,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(height)/100)*20)),
 				)
 
+				// resize http client pool chart
 				r.htp.SetRect(
 					int(math.Round((float64(width)/100)*60)),
 					int(math.Round((float64(height)/100)*20)),
@@ -146,6 +198,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(height)/100)*40)),
 				)
 
+				// resize workers chart
 				r.wks.SetRect(
 					int(math.Round((float64(width)/100)*60)),
 					int(math.Round((float64(height)/100)*40)),
@@ -153,6 +206,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(height)/100)*60)),
 				)
 
+				// resize logs paragraph
 				r.log.SetRect(
 					0,
 					int(math.Round((float64(height)/100)*80)),
@@ -160,6 +214,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(height)/100)*100)),
 				)
 
+				// resize test duration gauge
 				r.tst.SetRect(
 					int(math.Round((float64(width)/100)*60)),
 					int(math.Round((float64(height)/100)*60)),
@@ -167,6 +222,7 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(height)/100)*70)),
 				)
 
+				// resize info paragraph
 				r.inf.SetRect(
 					int(math.Round((float64(width)/100)*60)),
 					int(math.Round((float64(height)/100)*70)),
@@ -193,6 +249,10 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					r.rps.Data[rpsLineLey] = r.rps.Data[rpsLineLey][1:]
 				}
 				r.rps.Data[rpsLineLey] = append(r.rps.Data[rpsLineLey], p)
+
+				r.rpsTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+				r.rpsTsData[len(r.rpsTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.rpsTsData) - 1)).Format("15:04:05")
+				r.rpsTs.Text = strings.Join(r.rpsTsData, "")
 			}
 
 			// avg success requests duration
@@ -210,6 +270,10 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 					r.dur.Data[successDurationLineKey] = r.dur.Data[successDurationLineKey][1:]
 				}
 				r.dur.Data[successDurationLineKey] = append(r.dur.Data[successDurationLineKey], s)
+
+				r.durTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+				r.durTsData[len(r.durTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.durTsData) - 1)).Format("15:04:05")
+				r.durTs.Text = strings.Join(r.durTsData, "")
 			}
 
 			// avg failed requests duration
@@ -305,9 +369,11 @@ func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
 			var items = []ui.Drawable{r.tst, r.inf, r.log}
 			if len(r.rps.Data) > 0 {
 				items = append(items, r.rps)
+				items = append(items, r.rpsTs)
 			}
 			if len(r.dur.Data) > 0 {
 				items = append(items, r.dur)
+				items = append(items, r.durTs)
 			}
 			if len(r.grt.Data) > 0 {
 				items = append(items, r.grt)
@@ -361,6 +427,36 @@ func (r *RendererV2Service) initRpsPlot(width, height int) *widgets.Plot {
 	return plot
 }
 
+func (r *RendererV2Service) initRpsTimestampXosParagraph(width, height int) *widgets.Paragraph {
+	p := widgets.NewParagraph()
+	p.Border = true
+	p.WrapText = true
+	p.TextStyle.Fg = ui.ColorYellow
+
+	r.rpsTsData = make([]string, 0, totalDelimitersNumForMainCharts+2)
+	for j := 0; j < cap(r.rpsTsData)-1; j++ {
+		r.rpsTsData = append(r.rpsTsData, timestampDelimiter)
+	}
+
+	p.SetRect(
+		0,
+		int(math.Round((float64(height)/100)*34)),
+		int(math.Round((float64(width)/100)*60)),
+		int(math.Round((float64(height)/100)*40)),
+	)
+	return p
+}
+
+func (r *RendererV2Service) renewRpsTimestampXosParagraph() {
+	r.rpsTsData = make([]string, 0, totalDelimitersNumForMainCharts+2)
+	for j := 0; j < cap(r.rpsTsData)-1; j++ {
+		r.rpsTsData = append(r.rpsTsData, timestampDelimiter)
+	}
+	r.rpsTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+	r.rpsTsData[len(r.rpsTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.rpsTsData) - 1)).Format("15:04:05")
+	r.rpsTs.Text = strings.Join(r.rpsTsData, "")
+}
+
 func (r *RendererV2Service) initDurPlot(width, height int) *widgets.Plot {
 	plot := widgets.NewPlot()
 	plot.Title = "Duration"
@@ -376,6 +472,36 @@ func (r *RendererV2Service) initDurPlot(width, height int) *widgets.Plot {
 	)
 
 	return plot
+}
+
+func (r *RendererV2Service) initDurTimestampXosParagraph(width, height int) *widgets.Paragraph {
+	p := widgets.NewParagraph()
+	p.Border = true
+	p.WrapText = true
+	p.TextStyle.Fg = ui.ColorYellow
+
+	r.durTsData = make([]string, 0, totalDelimitersNumForMainCharts+2)
+	for j := 0; j < cap(r.durTsData)-1; j++ {
+		r.durTsData = append(r.durTsData, timestampDelimiter)
+	}
+
+	p.SetRect(
+		0,
+		int(math.Round((float64(height)/100)*74)),
+		int(math.Round((float64(width)/100)*60)),
+		int(math.Round((float64(height)/100)*80)),
+	)
+	return p
+}
+
+func (r *RendererV2Service) renewDurTimestampXosParagraph() {
+	r.durTsData = make([]string, 0, totalDelimitersNumForMainCharts+2)
+	for j := 0; j < cap(r.durTsData)-1; j++ {
+		r.durTsData = append(r.durTsData, timestampDelimiter)
+	}
+	r.durTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
+	r.durTsData[len(r.durTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.durTsData) - 1)).Format("15:04:05")
+	r.durTs.Text = strings.Join(r.durTsData, "")
 }
 
 func (r *RendererV2Service) initGoroutinesPlot(width, height int) *widgets.Plot {
