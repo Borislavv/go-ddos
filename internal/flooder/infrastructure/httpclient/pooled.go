@@ -12,6 +12,7 @@ type CancelFunc func()
 
 type Pool struct {
 	ctx     context.Context
+	cfg     *config.Config
 	pool    chan *http.Client
 	creator func() *http.Client
 	cancel  context.CancelFunc
@@ -29,12 +30,13 @@ func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Clien
 
 	p := &Pool{
 		ctx:     ctx,
+		cfg:     cfg,
 		pool:    make(chan *http.Client, cfg.PoolMaxSize),
 		creator: creator,
 		cancel:  cancel,
 	}
 
-	for i := 0; i < cfg.PoolInitSize; i++ {
+	for i := int64(0); i < cfg.PoolInitSize; i++ {
 		p.pool <- creator()
 	}
 
@@ -58,7 +60,7 @@ func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Clien
 }
 
 func (p *Pool) Do(req *http.Request) (*http.Response, error) {
-	return p.resp.Handle(p.req.Do(req.WithContext(p.ctx)))
+	return p.resp.Handle(p.req.Do(req))
 }
 
 func (p *Pool) OnReq(middlewares ...middleware.RequestMiddlewareFunc) Pooled {
@@ -80,7 +82,15 @@ func (p *Pool) Busy() int64 {
 }
 
 func (p *Pool) Total() int64 {
-	return atomic.LoadInt64(&p.conns)
+	t := atomic.LoadInt64(&p.conns)
+	if t > p.cfg.PoolMaxSize {
+		return p.cfg.PoolMaxSize
+	}
+	return t
+}
+
+func (p *Pool) OutOfPool() int64 {
+	return atomic.LoadInt64(&p.conns) - int64(cap(p.pool))
 }
 
 func (p *Pool) get() *http.Client {
