@@ -1,35 +1,30 @@
 package votestrategy
 
 import (
-	"github.com/Borislavv/go-ddos/config"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter"
-	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 )
 
 type ManyVoters struct {
-	voters    []voter.Voter
-	cfg       *config.Config
-	collector statservice.Collector
+	voters []voter.Voter
 }
 
-func NewManyVoters(
-	voters []voter.Voter,
-	cfg *config.Config,
-	collector statservice.Collector,
-) *ManyVoters {
-	return &ManyVoters{
-		voters:    voters,
-		cfg:       cfg,
-		collector: collector,
-	}
+func NewManyVoters(voters []voter.Voter) *ManyVoters {
+	return &ManyVoters{voters: voters}
 }
 
 func (s *ManyVoters) IsFor() bool {
-	i := 0
-	for _, voter := range s.voters {
-		if voter(s.cfg, s.collector) {
-			i++
+	var forNumber int
+	var prosWeight enum.Weight
+	var consWeight enum.Weight
+	for _, v := range s.voters {
+		isFor, weight := v.Vote()
+		if isFor {
+			forNumber++
+			prosWeight += weight
+		} else {
+			consWeight += weight
 		}
 	}
-	return i > len(s.voters)-i
+	return prosWeight > consWeight || forNumber > len(s.voters)-forNumber
 }
