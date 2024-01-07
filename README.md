@@ -1,4 +1,4 @@
-# ddos
+# DDOS/Stress tester
  
 ![image](https://github.com/Borislavv/go-ddos/assets/50691459/4f752ffe-8dae-4aba-b753-3a154ffaa610)
 
@@ -31,7 +31,7 @@ type Config struct {
 }
 ```
 
-Example:
+## Example:
 ```
 go run cmd/main.go --url="https://seo-php-swoole.lux.kube.xbet.lan/api/v1/pagedata?group_id=285&ref_id=1&url=https%3A%2F%2Fjared.com%2Fes%2Flive%2Ffootball&geo=by&language=en&project[id]=285&domain=jared.com&stream=live&section=sport&sport[id]=10&timezone=1" \
  --maxrps=1000 \
@@ -39,3 +39,19 @@ go run cmd/main.go --url="https://seo-php-swoole.lux.kube.xbet.lan/api/v1/pageda
  --maxworkers=10 --minworkers=10 \
  --poolinitsize=32 --poolmaxsize=1024
 ```
+
+## Disclaimer for DDOS Program
+
+Please read this disclaimer carefully before using the DDOS program ("the software") developed by Glazunov Borislav.
+
+The intention of the software: The DDOS program is developed solely for educational and research purposes. It is intended to understand and analyze the performance and resilience of networks and systems against distributed denial-of-service (DDOS) attacks.
+
+Limitation of liability: The developer of the software, Glazunov Borislav, will not be liable for any damages, including but not limited to direct, indirect, special, incidental, or consequential damages or losses that occur due to the use or inability to use the software.
+
+Use at your own risk: The user agrees to use the software at their own risk. The software is provided "as is" without warranty of any kind, either express or implied, including, but not limited to, the implied warranties of merchantability or fitness for a particular purpose.
+
+Legal compliance: The user of the software is responsible for ensuring that their use of the software complies with all applicable laws and regulations. Unauthorized or illegal use of this software is strictly prohibited.
+
+Modification of terms: Glazunov Borislav reserves the right to modify these terms at any time. Continued use of the software after such changes will constitute your consent to such changes.
+
+By using the DDOS program, you acknowledge that you have read this disclaimer and agree to its terms.
