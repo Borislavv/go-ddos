@@ -1,32 +1,21 @@
 package votestrategy
 
 import (
-	"github.com/Borislavv/go-ddos/config"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter"
-	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 )
 
 type AtLeastOneVoter struct {
-	voters    []voter.Voter
-	cfg       *config.Config
-	collector statservice.Collector
+	voters []voter.Voter
 }
 
-func NewAtLeastOneVoter(
-	voters []voter.Voter,
-	cfg *config.Config,
-	collector statservice.Collector,
-) *AtLeastOneVoter {
-	return &AtLeastOneVoter{
-		voters:    voters,
-		cfg:       cfg,
-		collector: collector,
-	}
+func NewAtLeastOneVoter(voters []voter.Voter) *AtLeastOneVoter {
+	return &AtLeastOneVoter{voters: voters}
 }
 
 func (s *AtLeastOneVoter) IsFor() bool {
-	for _, voter := range s.voters {
-		if voter(s.cfg, s.collector) {
+	for _, v := range s.voters {
+		isFor, _ := v.Vote()
+		if isFor {
 			return true
 		}
 	}
