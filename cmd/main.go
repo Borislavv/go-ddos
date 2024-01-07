@@ -25,6 +25,12 @@ func initCfg() (*config.Config, *httpclientconfig.Config) {
 	cfg := &config.Config{}
 	arg.MustParse(cfg)
 
+	testDuration, err := time.ParseDuration(cfg.Duration)
+	if err != nil {
+		panic(err)
+	}
+	cfg.DurationValue = testDuration
+
 	targetAvgSuccessRequestsDuration, err := time.ParseDuration(cfg.TargetAvgSuccessRequestsDuration)
 	if err != nil {
 		panic(err)
@@ -72,7 +78,7 @@ func main() {
 
 	cl := statservice.NewCollectorService(ctx, lg, pl, duration, cfg.Stages)
 
-	r := displayservice.NewRendererV2Service(ctx, exitCh, cl)
+	r := displayservice.NewRendererV2Service(ctx, cfg, exitCh, cl)
 	log.SetOutput(r)
 
 	//rr := displayservice.NewRendererService(ctx, lg, exitCh)
