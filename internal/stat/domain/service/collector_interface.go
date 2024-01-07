@@ -55,17 +55,4 @@ type Collector interface {
 	SetHttpClientPoolTotal()
 	HttpClientOutOfPool() int64
 	SetHttpClientOutOfPool()
-
-	LastSpawnByInterval() time.Time
-	SetLastSpawnByInterval()
-
-	LastSpawnByAvgDuration() time.Time
-	SetLastSpawnByAvgDuration()
-	LastCloseByAvgDuration() time.Time
-	SetLastCloseByAvgDuration()
-
-	LastSpawnByRPS() time.Time
-	SetLastSpawnByRPS()
-	LastCloseByRPS() time.Time
-	SetLastCloseByRPS()
 }

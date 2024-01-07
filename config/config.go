@@ -9,7 +9,8 @@ type Config struct {
 	MaxWorkers int64  `arg:"env:MAX_WORKERS,required"`
 
 	// Duration of application operation.
-	Duration string `arg:"env:DURATION" default:"10m"`
+	Duration      string `arg:"env:DURATION" default:"10m"`
+	DurationValue time.Duration
 
 	// Stages is a number of parts by which will be separated output table.
 	Stages int64 `arg:"-s,env:NUM_STAGES"                    default:"5"`
