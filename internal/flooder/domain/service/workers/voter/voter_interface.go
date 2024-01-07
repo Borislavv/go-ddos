@@ -1,8 +1,9 @@
 package voter
 
 import (
-	"github.com/Borislavv/go-ddos/config"
-	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
 )
 
-type Voter func(cfg *config.Config, collector statservice.Collector) bool
+type Voter interface {
+	Vote() (isFor bool, weight enum.Weight)
+}
