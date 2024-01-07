@@ -2,7 +2,7 @@
  
 ![image](https://github.com/Borislavv/go-ddos/assets/50691459/4f752ffe-8dae-4aba-b753-3a154ffaa610)
 
-###Configuration:
+## Configuration:
 ```
 type Config struct {
 	URL        string `arg:"env:URL,separate,required"`
