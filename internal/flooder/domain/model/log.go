@@ -1,8 +1,8 @@
 package floodermodel
 
 type Data struct {
-	Expected string `json:"expected,omitempty"`
-	Gotten   string `json:"gotten,omitempty"`
+	Expected interface{} `json:"expected,omitempty"`
+	Gotten   interface{} `json:"gotten,omitempty"`
 }
 
 type Log struct {
