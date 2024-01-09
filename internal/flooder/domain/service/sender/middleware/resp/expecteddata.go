@@ -2,6 +2,7 @@ package respmiddleware
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/Borislavv/go-ddos/config"
 	floodermodel "github.com/Borislavv/go-ddos/internal/flooder/domain/model"
 	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
@@ -9,6 +10,10 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+)
+
+var (
+	MismatchedDataWasDetectedError = errors.New("mismatched data was detected")
 )
 
 type ExpectedDataMiddleware struct {
@@ -60,6 +65,10 @@ func (m *ExpectedDataMiddleware) CheckData(next middleware.ResponseHandler) midd
 				}
 
 				m.logger.Println(string(b))
+
+				if err == nil {
+					return next.Handle(resp, MismatchedDataWasDetectedError)
+				}
 			}
 		}
 
