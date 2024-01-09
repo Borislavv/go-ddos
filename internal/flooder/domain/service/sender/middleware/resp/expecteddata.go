@@ -27,7 +27,7 @@ func NewExpectedDataMiddleware(cfg *config.Config, logger logservice.Logger) *Ex
 
 func (m *ExpectedDataMiddleware) CheckData(next middleware.ResponseHandler) middleware.ResponseHandler {
 	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
-		if resp != nil && resp.Body != nil {
+		if resp != nil && resp.Body != nil && m.cfg.ExpectedResponseData != "" {
 			b, e := io.ReadAll(resp.Body)
 			if e != nil {
 				m.logger.Println(e.Error())
