@@ -48,6 +48,7 @@ func (s *Http) addMiddlewares() {
 			respmiddleware.NewErrorMiddleware(s.logger).HandleError,
 			respmiddleware.NewStatusCodeMiddleware(s.logger).HandleStatusCode,
 			respmiddleware.NewMetricsMiddleware(s.logger, s.collector).CollectMetrics,
+			respmiddleware.NewExpectedDataMiddleware(s.cfg, s.logger).CheckData,
 			respmiddleware.NewCloseBodyMiddleware(s.logger).CloseResponseBody,
 		)
 }
