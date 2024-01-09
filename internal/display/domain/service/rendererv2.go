@@ -39,7 +39,9 @@ type RendererV2Service struct {
 	exitCh    chan<- os.Signal
 	collector statservice.Collector
 
+	fd  *os.File
 	log *widgets.List
+
 	tst *widgets.Gauge
 	inf *widgets.Paragraph
 
@@ -70,12 +72,26 @@ func NewRendererV2Service(
 	exitCh chan<- os.Signal,
 	collector statservice.Collector,
 ) *RendererV2Service {
-	return &RendererV2Service{
+	r := &RendererV2Service{
 		ctx:       ctx,
 		cfg:       cfg,
 		exitCh:    exitCh,
 		collector: collector,
 	}
+
+	if r.cfg.LogFile != "" {
+		f, err := os.Create(r.cfg.LogFile)
+		if err != nil {
+			panic(err)
+		}
+		r.fd = f
+	}
+
+	runtime.SetFinalizer(r, func(r *RendererV2Service) {
+		_ = r.fd.Close()
+	})
+
+	return r
 }
 
 func (r *RendererV2Service) Run(wg *sync.WaitGroup) {
@@ -466,6 +482,7 @@ func (r *RendererV2Service) Write(p []byte) (n int, err error) {
 		r.log.Rows = r.log.Rows[1:]
 	}
 	r.log.Rows = append(r.log.Rows, string(p))
+	_, _ = r.fd.Write(p)
 	return len(p), nil
 }
 
