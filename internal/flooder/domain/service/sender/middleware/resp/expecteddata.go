@@ -64,7 +64,7 @@ func (m *ExpectedDataMiddleware) CheckData(next middleware.ResponseHandler) midd
 					return next.Handle(resp, err)
 				}
 
-				m.logger.Println(MismatchedDataWasDetectedError.Error())
+				m.logger.Println(p)
 
 				if err == nil {
 					return next.Handle(resp, MismatchedDataWasDetectedError)
