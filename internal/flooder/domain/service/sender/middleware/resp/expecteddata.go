@@ -58,13 +58,13 @@ func (m *ExpectedDataMiddleware) CheckData(next middleware.ResponseHandler) midd
 					log.URL = resp.Request.URL.String()
 				}
 
-				b, e := json.MarshalIndent(log, "", " ")
-				if e != nil {
+				p, er := json.MarshalIndent(log, "", " ")
+				if er != nil {
 					m.logger.Println(e.Error())
 					return next.Handle(resp, err)
 				}
 
-				m.logger.Println(string(b))
+				m.logger.Println(MismatchedDataWasDetectedError.Error())
 
 				if err == nil {
 					return next.Handle(resp, MismatchedDataWasDetectedError)
