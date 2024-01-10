@@ -47,8 +47,8 @@ func (s *Http) addMiddlewares() {
 		OnResp(
 			respmiddleware.NewErrorMiddleware(s.logger).HandleError,
 			respmiddleware.NewStatusCodeMiddleware(s.logger).HandleStatusCode,
-			respmiddleware.NewMetricsMiddleware(s.logger, s.collector).CollectMetrics,
 			respmiddleware.NewExpectedDataMiddleware(s.cfg, s.logger).CheckData,
+			respmiddleware.NewMetricsMiddleware(s.logger, s.collector).CollectMetrics,
 			respmiddleware.NewCloseBodyMiddleware(s.logger).CloseResponseBody,
 		)
 }
