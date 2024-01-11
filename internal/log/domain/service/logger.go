@@ -16,7 +16,6 @@ type CloseFunc func()
 type Async struct {
 	ctx context.Context
 	ch  chan string
-	fd  *os.File
 }
 
 func NewAsync(ctx context.Context, cfg *config.Config) *Async {
@@ -25,21 +24,10 @@ func NewAsync(ctx context.Context, cfg *config.Config) *Async {
 		buff = 1
 	}
 
-	l := &Async{
+	return &Async{
 		ctx: ctx,
 		ch:  make(chan string, buff),
 	}
-
-	if cfg.LogFile != "" {
-		f, err := os.Create(cfg.LogFile)
-		if err != nil {
-			panic(err)
-		}
-		l.fd = f
-		log.SetOutput(f)
-	}
-
-	return l
 }
 
 func (l *Async) Run(wg *sync.WaitGroup) {
@@ -66,11 +54,6 @@ func (l *Async) Close() error {
 		<-t.C
 	}
 	close(l.ch)
-	if l.fd != nil {
-		if err := l.fd.Close(); err != nil {
-			return err
-		}
-	}
 	log.SetOutput(os.Stdout)
 	return nil
 }
