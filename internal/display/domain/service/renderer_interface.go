@@ -1,15 +1,8 @@
 package displayservice
 
-import (
-	"context"
-	displaymodel "github.com/Borislavv/go-ddos/internal/display/domain/model"
-	"sync"
-)
+import "sync"
 
 type Renderer interface {
-	Draw(wg *sync.WaitGroup, ctx context.Context)
-	Listen(wg *sync.WaitGroup, cancel context.CancelFunc)
-	TableCh() chan<- *displaymodel.Table
-	SummaryTableCh() chan<- *displaymodel.Table
-	Close() error
+	Run(wg *sync.WaitGroup)
+	Write(p []byte) (n int, err error)
 }
