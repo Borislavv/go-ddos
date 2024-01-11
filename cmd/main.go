@@ -12,6 +12,7 @@ import (
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"github.com/alexflint/go-arg"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -51,6 +52,22 @@ func initCfg() (*config.Config, *httpclientconfig.Config) {
 	return cfg, poolCfg
 }
 
+func handleOutput(cfg *config.Config, renderer displayservice.Renderer) []io.Writer {
+	var writers []io.Writer
+	writers = append(writers, renderer)
+
+	if cfg.LogFile != "" {
+		f, err := os.Create(cfg.LogFile)
+		if err != nil {
+			panic(err)
+		}
+		defer func() { _ = f.Close() }()
+		writers = append(writers, f)
+	}
+
+	return writers
+}
+
 func main() {
 	cfg, poolCfg := initCfg()
 
@@ -58,12 +75,7 @@ func main() {
 	defer close(exitCh)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 
-	duration, err := time.ParseDuration(cfg.Duration)
-	if err != nil {
-		panic(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.DurationValue)
 
 	lg := logservice.NewAsync(ctx, cfg)
 	lwg := &sync.WaitGroup{}
@@ -76,27 +88,20 @@ func main() {
 	pl := httpclient.NewPool(ctx, poolCfg, cr)
 	defer func() { _ = pl.Close() }()
 
-	cl := statservice.NewCollectorService(ctx, lg, pl, duration, cfg.Stages)
-
-	r := displayservice.NewRendererV2Service(ctx, cfg, exitCh, cl)
-	log.SetOutput(r)
-
-	//rr := displayservice.NewRendererService(ctx, lg, exitCh)
-	//st := stat.New(ctx, cfg, lg, rr, cl)
-	//dy := display.New(ctx, lg, rr)
+	cl := statservice.NewCollectorService(ctx, lg, pl, cfg.DurationValue, cfg.Stages)
+	rr := displayservice.NewRendererService(ctx, cfg, exitCh, cl)
 	sr := sender.NewHttp(cfg, lg, pl, cl)
 	mg := workers.NewManagerService(ctx, sr, lg, cl)
 	bl := workers.NewBalancerService(ctx, cfg, lg, cl)
 	fl := ddosservice.New(ctx, cfg, lg, bl, cl, mg)
 
+	log.SetOutput(logservice.NewMultiWriter(handleOutput(cfg, rr)...))
+
 	wg := &sync.WaitGroup{}
 	wg.Add(3)
 	defer wg.Wait()
-	go r.Run(wg)
-	time.Sleep(time.Second)
+	go rr.Run(wg)
 	go cl.Run(wg)
-	//go dy.Run(wg)
-	//go st.Run(wg)
 	go fl.Run(wg)
 
 	select {
