@@ -531,6 +531,9 @@ func (r *RendererService) initDurPlot(width, height int) *widgets.Plot {
 	plot.AxesColor = ui.ColorWhite
 
 	plot.Data = make([][]float64, 0, 2)
+	plot.LineColors = make([]ui.Color, 2)
+	plot.LineColors[0] = ui.ColorGreen
+	plot.LineColors[1] = ui.ColorRed
 
 	plot.SetRect(
 		0,
