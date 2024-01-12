@@ -52,7 +52,7 @@ func initCfg() (*config.Config, *httpclientconfig.Config) {
 	return cfg, poolCfg
 }
 
-func handleOutput(cfg *config.Config, renderer displayservice.Renderer) []io.Writer {
+func handleOutput(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, renderer displayservice.Renderer) []io.Writer {
 	var writers []io.Writer
 	writers = append(writers, renderer)
 
@@ -61,7 +61,16 @@ func handleOutput(cfg *config.Config, renderer displayservice.Renderer) []io.Wri
 		if err != nil {
 			panic(err)
 		}
-		defer func() { _ = f.Close() }()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				_ = f.Close()
+			}
+		}()
+
 		writers = append(writers, f)
 	}
 
@@ -95,7 +104,7 @@ func main() {
 	bl := workers.NewBalancerService(ctx, cfg, lg, cl)
 	fl := ddosservice.New(ctx, cfg, lg, bl, cl, mg)
 
-	log.SetOutput(logservice.NewMultiWriter(handleOutput(cfg, rr)...))
+	log.SetOutput(logservice.NewMultiWriter(handleOutput(ctx, lwg, cfg, rr)...))
 
 	wg := &sync.WaitGroup{}
 	wg.Add(3)
