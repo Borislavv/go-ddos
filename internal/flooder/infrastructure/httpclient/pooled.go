@@ -6,6 +6,7 @@ import (
 	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
 	"net/http"
 	"sync/atomic"
+	"time"
 )
 
 type CancelFunc func()
@@ -40,10 +41,10 @@ func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Clien
 		p.pool <- creator()
 	}
 
-	p.conns = int64(cfg.PoolInitSize)
+	p.conns = cfg.PoolInitSize
 
 	p.req = middleware.RequestModifierFunc(
-		func(req *http.Request) (*http.Response, error) {
+		func(req *http.Request) (resp *http.Response, err error) {
 			c := p.get()
 			defer p.put(c)
 			return c.Do(req)
@@ -51,16 +52,18 @@ func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Clien
 	)
 
 	p.resp = middleware.ResponseHandlerFunc(
-		func(resp *http.Response, err error) (*http.Response, error) {
-			return resp, err
+		func(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64) {
+			return resp, err, timestamp
 		},
 	)
 
 	return p
 }
 
-func (p *Pool) Do(req *http.Request) (*http.Response, error) {
-	return p.resp.Handle(p.req.Do(req))
+func (p *Pool) Do(req *http.Request) (resp *http.Response, err error, timestamp int64) {
+	timestamp = time.Now().UnixMilli()
+	resp, err = p.req.Do(req)
+	return p.resp.Handle(resp, err, timestamp)
 }
 
 func (p *Pool) OnReq(middlewares ...middleware.RequestMiddlewareFunc) Pooled {
