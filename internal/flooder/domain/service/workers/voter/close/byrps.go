@@ -41,7 +41,9 @@ func (s *ByRPS) Vote() (weight enum.Weight, sleep time.Duration) {
 			isFor = s.rpsTrend[0] < s.rpsTrend[len(s.rpsTrend)-1]
 		}
 		if isFor {
-			return enum.AbsolutelyFor, s.cfg.SpawnIntervalValue / 4
+			if s.collector.Workers() > s.cfg.MinWorkers {
+				return enum.AbsolutelyFor, s.cfg.SpawnIntervalValue / 4
+			}
 		}
 	}
 
