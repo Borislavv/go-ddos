@@ -19,14 +19,14 @@ func NewStatusCodeMiddleware(logger logservice.Logger) *StatusCodeMiddleware {
 }
 
 func (m *StatusCodeMiddleware) HandleStatusCode(next middleware.ResponseHandler) middleware.ResponseHandler {
-	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
+	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64) {
 		if err == nil && resp != nil && resp.StatusCode != http.StatusOK {
 			var msg string
 			if resp.StatusCode == http.StatusInternalServerError && resp.Body != nil {
 				b, e := io.ReadAll(resp.Body)
 				if e != nil {
 					m.logger.Println(e.Error())
-					return next.Handle(resp, err)
+					return next.Handle(resp, err, timestamp)
 				}
 				msg = string(b)
 			} else {
@@ -36,11 +36,11 @@ func (m *StatusCodeMiddleware) HandleStatusCode(next middleware.ResponseHandler)
 			b, e := json.MarshalIndent(floodermodel.Log{Error: msg}, "", "  ")
 			if e != nil {
 				m.logger.Println(e.Error())
-				return next.Handle(resp, err)
+				return next.Handle(resp, err, timestamp)
 			}
 			m.logger.Println(string(b))
 		}
 
-		return next.Handle(resp, err)
+		return next.Handle(resp, err, timestamp)
 	})
 }
