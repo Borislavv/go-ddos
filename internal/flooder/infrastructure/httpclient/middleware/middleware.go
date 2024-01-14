@@ -5,23 +5,23 @@ import (
 )
 
 type RequestModifier interface {
-	Do(req *http.Request) (*http.Response, error)
+	Do(req *http.Request) (resp *http.Response, err error)
 }
 
-type RequestModifierFunc func(req *http.Request) (*http.Response, error)
+type RequestModifierFunc func(req *http.Request) (resp *http.Response, err error)
 
-func (m RequestModifierFunc) Do(req *http.Request) (*http.Response, error) {
+func (m RequestModifierFunc) Do(req *http.Request) (resp *http.Response, err error) {
 	return m(req)
 }
 
 type ResponseHandler interface {
-	Handle(resp *http.Response, err error) (*http.Response, error)
+	Handle(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64)
 }
 
-type ResponseHandlerFunc func(resp *http.Response, err error) (*http.Response, error)
+type ResponseHandlerFunc func(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64)
 
-func (m ResponseHandlerFunc) Handle(resp *http.Response, err error) (*http.Response, error) {
-	return m(resp, err)
+func (m ResponseHandlerFunc) Handle(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64) {
+	return m(resp, err, timestamp)
 }
 
 type RequestMiddleware interface {
