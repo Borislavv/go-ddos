@@ -34,7 +34,7 @@ func NewHttp(
 }
 
 func (s *Http) Send(req *http.Request) {
-	_, _ = s.httpClient.Do(req)
+	_, _, _ = s.httpClient.Do(req)
 }
 
 func (s *Http) addMiddlewares() {
