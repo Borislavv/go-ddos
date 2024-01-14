@@ -21,8 +21,8 @@ func NewByInterval(cfg *config.Config, collector statservice.Collector) *ByInter
 
 func (s *ByInterval) Vote() (weight enum.Weight, sleep time.Duration) {
 	if s.collector.Workers() < s.cfg.MaxWorkers {
-		return enum.TotallyFor, time.Millisecond * 500
-	} else {
-		return enum.For, time.Millisecond * 1000
+		return enum.TotallyFor, s.cfg.SpawnIntervalValue
 	}
+
+	return enum.Check, 0
 }
