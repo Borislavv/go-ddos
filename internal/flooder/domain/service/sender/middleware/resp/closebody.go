@@ -15,13 +15,13 @@ func NewCloseBodyMiddleware(logger logservice.Logger) *CloseBodyMiddleware {
 }
 
 func (m *CloseBodyMiddleware) CloseResponseBody(next middleware.ResponseHandler) middleware.ResponseHandler {
-	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
+	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64) {
 		if resp != nil && resp.Body != nil {
 			if e := resp.Body.Close(); e != nil {
 				m.logger.Println(err.Error())
 			}
 		}
 
-		return next.Handle(resp, err)
+		return next.Handle(resp, err, timestamp)
 	})
 }
