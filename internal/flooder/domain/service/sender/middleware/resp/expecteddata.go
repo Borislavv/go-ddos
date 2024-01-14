@@ -26,22 +26,22 @@ func NewExpectedDataMiddleware(cfg *config.Config, logger logservice.Logger) *Ex
 }
 
 func (m *ExpectedDataMiddleware) CheckData(next middleware.ResponseHandler) middleware.ResponseHandler {
-	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
+	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64) {
 		if resp != nil && resp.Body != nil && m.cfg.ExpectedResponseData != "" {
 			b, e := io.ReadAll(resp.Body)
 			if e != nil {
 				m.logger.Println(e.Error())
-				return next.Handle(resp, err)
+				return next.Handle(resp, err, timestamp)
 			}
 
 			var responseData, expectedData interface{}
 			if e = json.Unmarshal(b, &responseData); err != nil {
 				m.logger.Println(e.Error())
-				return next.Handle(resp, err)
+				return next.Handle(resp, err, timestamp)
 			}
 			if e = json.Unmarshal([]byte(m.cfg.ExpectedResponseData), &expectedData); err != nil {
 				m.logger.Println(e.Error())
-				return next.Handle(resp, err)
+				return next.Handle(resp, err, timestamp)
 			}
 
 			if !reflect.DeepEqual(responseData, expectedData) {
@@ -61,17 +61,17 @@ func (m *ExpectedDataMiddleware) CheckData(next middleware.ResponseHandler) midd
 				p, er := json.MarshalIndent(log, "", " ")
 				if er != nil {
 					m.logger.Println(e.Error())
-					return next.Handle(resp, err)
+					return next.Handle(resp, err, timestamp)
 				}
 
 				m.logger.Println(string(p))
 
 				if err == nil {
-					return next.Handle(resp, MismatchedDataWasDetectedError)
+					return next.Handle(resp, MismatchedDataWasDetectedError, timestamp)
 				}
 			}
 		}
 
-		return next.Handle(resp, err)
+		return next.Handle(resp, err, timestamp)
 	})
 }
