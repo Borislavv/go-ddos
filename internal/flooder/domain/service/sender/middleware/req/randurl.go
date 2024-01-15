@@ -24,8 +24,12 @@ func (m *RandUrlMiddleware) AddRandUrl(next httpclientmiddleware.RequestModifier
 			rand.Seed(time.Now().UnixNano())
 
 			if len(m.URLs) != 0 {
-				//u := m.URLs[rand.Intn(len(m.URLs)+1)]
-				u := m.URLs[0] // TODO fix it
+				var u string
+				if len(m.URLs) > 1 {
+					u = m.URLs[rand.Intn(len(m.URLs))]
+				} else {
+					u = m.URLs[0]
+				}
 				p, err := url.Parse(u)
 				if err != nil {
 					m.logger.Println("unable to parse given url, " + err.Error())
