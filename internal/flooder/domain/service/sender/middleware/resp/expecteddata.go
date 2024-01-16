@@ -6,6 +6,7 @@ import (
 	"github.com/Borislavv/go-ddos/config"
 	floodermodel "github.com/Borislavv/go-ddos/internal/flooder/domain/model"
 	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
+	httpclientmodel "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/model"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	"io"
 	"reflect"
@@ -25,7 +26,7 @@ func NewExpectedDataMiddleware(cfg *config.Config, logger logservice.Logger) *Ex
 }
 
 func (m *ExpectedDataMiddleware) CheckData(next middleware.ResponseHandler) middleware.ResponseHandler {
-	return middleware.ResponseHandlerFunc(func(resp *floodermodel.Response) *floodermodel.Response {
+	return middleware.ResponseHandlerFunc(func(resp *httpclientmodel.Response) *httpclientmodel.Response {
 		if !resp.IsFailed() && resp.Resp().Body != nil {
 			b, e := io.ReadAll(resp.Resp().Body)
 			if e != nil {
@@ -66,6 +67,10 @@ func (m *ExpectedDataMiddleware) CheckData(next middleware.ResponseHandler) midd
 				}
 
 				m.logger.Println(string(p))
+
+				if resp.Err() == nil {
+					resp.SetErr(MismatchedDataWasDetectedError)
+				}
 			}
 		}
 
