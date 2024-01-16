@@ -6,7 +6,7 @@ import (
 )
 
 type Pooled interface {
-	Do(req *http.Request) (resp *http.Response, err error, timestamp int64)
+	Do(req *http.Request) (resp *http.Response, err error)
 	OnReq(middlewares ...httpclientmiddleware.RequestMiddlewareFunc) Pooled
 	OnResp(middlewares ...httpclientmiddleware.ResponseMiddlewareFunc) Pooled
 
