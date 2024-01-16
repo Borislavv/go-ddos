@@ -5,7 +5,6 @@ import (
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/model"
 	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
-	"net/http"
 )
 
 type ErrorMiddleware struct {
@@ -17,16 +16,18 @@ func NewErrorMiddleware(logger logservice.Logger) *ErrorMiddleware {
 }
 
 func (m *ErrorMiddleware) HandleError(next middleware.ResponseHandler) middleware.ResponseHandler {
-	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64) {
-		if err != nil {
-			b, e := json.MarshalIndent(floodermodel.Log{Error: err.Error()}, "", "  ")
+	return middleware.ResponseHandlerFunc(func(resp *floodermodel.Response) *floodermodel.Response {
+		if resp.Err() != nil {
+			resp.SetFailed()
+
+			b, e := json.MarshalIndent(floodermodel.Log{Error: resp.Err().Error()}, "", "  ")
 			if e != nil {
 				m.logger.Println(e.Error())
-				return next.Handle(resp, err, timestamp)
+				return next.Handle(resp)
 			}
 			m.logger.Println(string(b))
 		}
 
-		return next.Handle(resp, err, timestamp)
+		return next.Handle(resp)
 	})
 }
