@@ -2,9 +2,9 @@ package httpclient
 
 import (
 	"context"
-	floodermodel "github.com/Borislavv/go-ddos/internal/flooder/domain/model"
 	config "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
 	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
+	model "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/model"
 	"net/http"
 	"sync/atomic"
 )
@@ -52,7 +52,7 @@ func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Clien
 	)
 
 	p.resp = middleware.ResponseHandlerFunc(
-		func(resp *floodermodel.Response) *floodermodel.Response {
+		func(resp *model.Response) *model.Response {
 			return resp
 		},
 	)
@@ -61,7 +61,7 @@ func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Clien
 }
 
 func (p *Pool) Do(req *http.Request) (resp *http.Response, err error) {
-	return p.resp.Handle(floodermodel.NewResponse().SetResponse(p.req.Do(req))).Response()
+	return p.resp.Handle(model.NewResponse().SetResponse(p.req.Do(req))).Response()
 }
 
 func (p *Pool) OnReq(middlewares ...middleware.RequestMiddlewareFunc) Pooled {
