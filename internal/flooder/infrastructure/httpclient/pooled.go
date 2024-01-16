@@ -2,11 +2,11 @@ package httpclient
 
 import (
 	"context"
+	floodermodel "github.com/Borislavv/go-ddos/internal/flooder/domain/model"
 	config "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
 	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
 	"net/http"
 	"sync/atomic"
-	"time"
 )
 
 type CancelFunc func()
@@ -52,18 +52,16 @@ func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Clien
 	)
 
 	p.resp = middleware.ResponseHandlerFunc(
-		func(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64) {
-			return resp, err, timestamp
+		func(resp *floodermodel.Response) *floodermodel.Response {
+			return resp
 		},
 	)
 
 	return p
 }
 
-func (p *Pool) Do(req *http.Request) (resp *http.Response, err error, timestamp int64) {
-	timestamp = time.Now().UnixMilli()
-	resp, err = p.req.Do(req)
-	return p.resp.Handle(resp, err, timestamp)
+func (p *Pool) Do(req *http.Request) (resp *http.Response, err error) {
+	return p.resp.Handle(floodermodel.NewResponse().SetResponse(p.req.Do(req))).Response()
 }
 
 func (p *Pool) OnReq(middlewares ...middleware.RequestMiddlewareFunc) Pooled {
