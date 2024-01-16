@@ -1,8 +1,8 @@
 package respmiddleware
 
 import (
-	floodermodel "github.com/Borislavv/go-ddos/internal/flooder/domain/model"
 	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
+	httpclientmodel "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/model"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 )
@@ -23,7 +23,7 @@ func NewMetricsMiddleware(
 }
 
 func (m *MetricsMiddleware) CollectMetrics(next middleware.ResponseHandler) middleware.ResponseHandler {
-	return middleware.ResponseHandlerFunc(func(resp *floodermodel.Response) *floodermodel.Response {
+	return middleware.ResponseHandlerFunc(func(resp *httpclientmodel.Response) *httpclientmodel.Response {
 		duration := resp.Duration()
 
 		m.collector.AddTotalRequest()
