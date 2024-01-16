@@ -8,7 +8,6 @@ import (
 	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	"io"
-	"net/http"
 	"reflect"
 )
 
@@ -26,52 +25,50 @@ func NewExpectedDataMiddleware(cfg *config.Config, logger logservice.Logger) *Ex
 }
 
 func (m *ExpectedDataMiddleware) CheckData(next middleware.ResponseHandler) middleware.ResponseHandler {
-	return middleware.ResponseHandlerFunc(func(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64) {
-		if resp != nil && resp.Body != nil && m.cfg.ExpectedResponseData != "" {
-			b, e := io.ReadAll(resp.Body)
+	return middleware.ResponseHandlerFunc(func(resp *floodermodel.Response) *floodermodel.Response {
+		if !resp.IsFailed() && resp.Resp().Body != nil {
+			b, e := io.ReadAll(resp.Resp().Body)
 			if e != nil {
 				m.logger.Println(e.Error())
-				return next.Handle(resp, err, timestamp)
+				return next.Handle(resp)
 			}
 
 			var responseData, expectedData interface{}
-			if e = json.Unmarshal(b, &responseData); err != nil {
+			if e = json.Unmarshal(b, &responseData); e != nil {
 				m.logger.Println(e.Error())
-				return next.Handle(resp, err, timestamp)
+				return next.Handle(resp)
 			}
-			if e = json.Unmarshal([]byte(m.cfg.ExpectedResponseData), &expectedData); err != nil {
+			if e = json.Unmarshal([]byte(m.cfg.ExpectedResponseData), &expectedData); e != nil {
 				m.logger.Println(e.Error())
-				return next.Handle(resp, err, timestamp)
+				return next.Handle(resp)
 			}
 
 			if !reflect.DeepEqual(responseData, expectedData) {
+				resp.SetFailed()
+
 				log := floodermodel.Log{
 					Error:      "mismatch data found",
-					StatusCode: resp.StatusCode,
+					StatusCode: resp.Resp().StatusCode,
 					Data: floodermodel.Data{
 						Expected: expectedData,
 						Gotten:   responseData,
 					},
 				}
 
-				if resp.Request != nil && resp.Request.URL != nil {
-					log.URL = resp.Request.URL.String()
+				if resp.Resp().Request != nil && resp.Resp().Request.URL != nil {
+					log.URL = resp.Resp().Request.URL.String()
 				}
 
 				p, er := json.MarshalIndent(log, "", " ")
 				if er != nil {
 					m.logger.Println(e.Error())
-					return next.Handle(resp, err, timestamp)
+					return next.Handle(resp)
 				}
 
 				m.logger.Println(string(p))
-
-				if err == nil {
-					return next.Handle(resp, MismatchedDataWasDetectedError, timestamp)
-				}
 			}
 		}
 
-		return next.Handle(resp, err, timestamp)
+		return next.Handle(resp)
 	})
 }
