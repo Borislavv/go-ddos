@@ -21,6 +21,8 @@ type Config struct {
 	// ExpectedResponseData is string which contains expected response data.
 	// If it does not match, request will be marked as failed.
 	ExpectedResponseData string `arg:"-e,env:EXPECTED_RESPONSE_DATA"`
+	// AddTimestampToUrl is adds unique timestamp in milliseconds value to each URL (commonly for avoid HTTP cache).
+	AddTimestampToUrl bool `arg:"env:ADD_TIMESTAMP_TO_URL"`
 
 	// PoolInitSize is httpclient pool init. size.
 	PoolInitSize int64 `arg:"-i,env:HTTP_CLIENT_POOL_INIT_SIZE" default:"32"`
