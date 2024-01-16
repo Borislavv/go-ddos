@@ -1,6 +1,7 @@
 package httpclientmiddleware
 
 import (
+	floodermodel "github.com/Borislavv/go-ddos/internal/flooder/domain/model"
 	"net/http"
 )
 
@@ -15,13 +16,13 @@ func (m RequestModifierFunc) Do(req *http.Request) (resp *http.Response, err err
 }
 
 type ResponseHandler interface {
-	Handle(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64)
+	Handle(resp *floodermodel.Response) *floodermodel.Response
 }
 
-type ResponseHandlerFunc func(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64)
+type ResponseHandlerFunc func(resp *floodermodel.Response) *floodermodel.Response
 
-func (m ResponseHandlerFunc) Handle(resp *http.Response, err error, timestamp int64) (*http.Response, error, int64) {
-	return m(resp, err, timestamp)
+func (m ResponseHandlerFunc) Handle(resp *floodermodel.Response) *floodermodel.Response {
+	return m(resp)
 }
 
 type RequestMiddleware interface {
