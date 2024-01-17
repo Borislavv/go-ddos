@@ -170,13 +170,13 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 					0,
 					0,
 					int(math.Round((float64(width)/100)*60)),
-					int(math.Round((float64(height)/100)*40)),
+					int(math.Round((float64(height)/100)*30)),
 				)
 				r.rpsTs.SetRect(
 					0,
 					int(math.Round((float64(height)/100)*34)),
 					int(math.Round((float64(width)/100)*60)),
-					int(math.Round((float64(height)/100)*40)),
+					int(math.Round((float64(height)/100)*30)),
 				)
 				r.renewRpsTimestampXosParagraph()
 
@@ -489,7 +489,7 @@ func (r *RendererService) initRpsPlot(width, height int) *widgets.Plot {
 		0,
 		0,
 		int(math.Round((float64(width)/100)*60)),
-		int(math.Round((float64(height)/100)*40)),
+		int(math.Round((float64(height)/100)*30)),
 	)
 
 	return plot
@@ -508,9 +508,9 @@ func (r *RendererService) initRpsTimestampXosParagraph(width, height int) *widge
 
 	p.SetRect(
 		0,
-		int(math.Round((float64(height)/100)*34)),
+		int(math.Round((float64(height)/100)*24)),
 		int(math.Round((float64(width)/100)*60)),
-		int(math.Round((float64(height)/100)*40)),
+		int(math.Round((float64(height)/100)*30)),
 	)
 	return p
 }
