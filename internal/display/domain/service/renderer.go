@@ -174,7 +174,7 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 				)
 				r.rpsTs.SetRect(
 					0,
-					int(math.Round((float64(height)/100)*34)),
+					int(math.Round((float64(height)/100)*24)),
 					int(math.Round((float64(width)/100)*60)),
 					int(math.Round((float64(height)/100)*30)),
 				)
