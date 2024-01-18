@@ -13,7 +13,7 @@ type Config struct {
 	DurationValue time.Duration
 
 	// Stages is a number of parts by which will be separated output table.
-	Stages int64 `arg:"-s,env:NUM_STAGES"                    default:"5"`
+	Stages int64 `arg:"-s,env:NUM_STAGES"                    default:"1"`
 	// LogFile is a path to file into which will be redirected logs.
 	LogFile string `arg:"-l,env:LOG_FILE"`
 	// LogHeaders is a slice of headers which must be caught on request error.
