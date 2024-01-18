@@ -42,6 +42,7 @@ type RendererService struct {
 
 	fd  *os.File
 	log *widgets.List
+	cnt *widgets.PieChart
 
 	tst *widgets.Gauge
 	inf *widgets.Paragraph
@@ -109,6 +110,7 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 	r.log = r.initLogsList(width, height)
 	r.tst = r.initDurationGauge(width, height)
 	r.inf = r.initInfoParagraph(width, height)
+	r.cnt = r.initCountPieChart(width, height)
 
 	r.rps = r.initRpsPlot(width, height)
 	r.rpsTs = r.initRpsTimestampXosParagraph(width, height)
@@ -194,6 +196,13 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 					int(math.Round((float64(height)/100)*60)),
 				)
 				r.renewDurTimestampXosParagraph()
+
+				r.cnt.SetRect(
+					0,
+					int(math.Round((float64(height)/100)*80)),
+					int(math.Round((float64(width)/100)*15)),
+					int(math.Round((float64(height)/100)*60)),
+				)
 
 				// resize goroutines chart
 				r.grt.SetRect(
@@ -331,6 +340,10 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 				r.durTs.Text = strings.Join(r.durTsData, "")
 			}
 
+			// count of success/failed requests
+			r.cnt.Data[0] = float64(r.collector.SummarySuccessRequests())
+			r.cnt.Data[1] = float64(r.collector.SummaryFailedRequests())
+
 			// number of goroutines
 			g := float64(runtime.NumGoroutine())
 			if g > 0 && !isSatGoroutinesLine {
@@ -430,7 +443,7 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 				strings.Split((r.cfg.DurationValue - time.Since(r.collector.StartedAt())).String(), ".")[0]+"s",
 			)
 
-			var items = []ui.Drawable{r.tst, r.inf, r.log}
+			var items = []ui.Drawable{r.tst, r.inf, r.log, r.cnt}
 			if len(r.rps.Data) > 0 {
 				items = append(items, r.rps)
 				items = append(items, r.rpsTs)
@@ -573,6 +586,30 @@ func (r *RendererService) renewDurTimestampXosParagraph() {
 	r.durTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
 	r.durTsData[len(r.durTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.durTsData) - 1)).Format("15:04:05")
 	r.durTs.Text = strings.Join(r.durTsData, "")
+}
+
+func (r *RendererService) initCountPieChart(width, height int) *widgets.PieChart {
+	pc := widgets.NewPieChart()
+	pc.Title = "[Requests]"
+	pc.SetRect(
+		0,
+		int(math.Round((float64(height)/100)*80)),
+		int(math.Round((float64(width)/100)*15)),
+		int(math.Round((float64(height)/100)*60)),
+	)
+	pc.Border = false
+	pc.Data = []float64{0, 0}
+	pc.Colors[0] = ui.ColorGreen
+	pc.Colors[1] = ui.ColorRed
+	pc.AngleOffset = -.5 * math.Pi
+	pc.LabelFormatter = func(i int, v float64) string {
+		if i == 0 {
+			return fmt.Sprintf("Success: %.02f", v)
+		}
+		return fmt.Sprintf("Failed: %.02f", v)
+	}
+
+	return pc
 }
 
 func (r *RendererService) initGoroutinesPlot(width, height int) *widgets.Plot {
