@@ -183,15 +183,15 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 				// resize avg request duration char
 				r.dur.SetRect(
 					0,
-					int(math.Round((float64(height)/100)*80)),
+					int(math.Round((float64(height)/100)*60)),
 					int(math.Round((float64(width)/100)*60)),
-					int(math.Round((float64(height)/100)*40)),
+					int(math.Round((float64(height)/100)*30)),
 				)
 				r.durTs.SetRect(
 					0,
-					int(math.Round((float64(height)/100)*74)),
+					int(math.Round((float64(height)/100)*54)),
 					int(math.Round((float64(width)/100)*60)),
-					int(math.Round((float64(height)/100)*80)),
+					int(math.Round((float64(height)/100)*60)),
 				)
 				r.renewDurTimestampXosParagraph()
 
@@ -537,9 +537,9 @@ func (r *RendererService) initDurPlot(width, height int) *widgets.Plot {
 
 	plot.SetRect(
 		0,
-		int(math.Round((float64(height)/100)*80)),
+		int(math.Round((float64(height)/100)*60)),
 		int(math.Round((float64(width)/100)*60)),
-		int(math.Round((float64(height)/100)*40)),
+		int(math.Round((float64(height)/100)*30)),
 	)
 
 	return plot
@@ -558,9 +558,9 @@ func (r *RendererService) initDurTimestampXosParagraph(width, height int) *widge
 
 	p.SetRect(
 		0,
-		int(math.Round((float64(height)/100)*74)),
+		int(math.Round((float64(height)/100)*54)),
 		int(math.Round((float64(width)/100)*60)),
-		int(math.Round((float64(height)/100)*80)),
+		int(math.Round((float64(height)/100)*60)),
 	)
 	return p
 }
