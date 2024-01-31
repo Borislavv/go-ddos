@@ -299,8 +299,8 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 			}
 
 			// avg success requests duration
-			s := float64(r.collector.AvgSuccessRequestsDuration().Milliseconds())
-			if s > 0 && !isSatSuccessDurationLine {
+			s := r.collector.AvgSuccessRequestsDuration()
+			if !isSatSuccessDurationLine {
 				isSatSuccessDurationLine = true
 
 				r.dur.Data = append(r.dur.Data, make([]float64, 0, (width/100)*60))
@@ -312,7 +312,10 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 				if r.isMaxLenReachedForMainPlots(width, r.dur.Data[successDurationLineKey]) {
 					r.dur.Data[successDurationLineKey] = r.dur.Data[successDurationLineKey][1:]
 				}
-				r.dur.Data[successDurationLineKey] = append(r.dur.Data[successDurationLineKey], s)
+				r.dur.Data[successDurationLineKey] = append(
+					r.dur.Data[successDurationLineKey],
+					(math.Round(float64(s.Nanoseconds()/1000000))*100)/100,
+				)
 
 				r.durTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
 				r.durTsData[len(r.durTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.durTsData) - 1)).Format("15:04:05")
@@ -320,8 +323,8 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 			}
 
 			// avg failed requests duration
-			f := float64(r.collector.AvgFailedRequestsDuration().Milliseconds())
-			if f > 0 && !isSatFailedDurationLine {
+			f := r.collector.AvgFailedRequestsDuration()
+			if f.Nanoseconds() > 0 && !isSatFailedDurationLine {
 				isSatFailedDurationLine = true
 
 				r.dur.Data = append(r.dur.Data, make([]float64, 0, (width/100)*60))
@@ -333,7 +336,10 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 				if r.isMaxLenReachedForMainPlots(width, r.dur.Data[failedDurationLineKey]) {
 					r.dur.Data[failedDurationLineKey] = r.dur.Data[failedDurationLineKey][1:]
 				}
-				r.dur.Data[failedDurationLineKey] = append(r.dur.Data[failedDurationLineKey], f)
+				r.dur.Data[failedDurationLineKey] = append(
+					r.dur.Data[failedDurationLineKey],
+					(math.Round(float64(f.Nanoseconds()/1000000))*100)/100,
+				)
 
 				r.durTsData[0] = time.Now().Add(renderTickDur).Format("15:04:05")
 				r.durTsData[len(r.durTsData)-1] = time.Now().Add(time.Duration(int(renderTickDur)*len(r.durTsData) - 1)).Format("15:04:05")
