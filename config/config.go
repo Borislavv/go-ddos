@@ -3,18 +3,23 @@ package config
 import "time"
 
 type Config struct {
-	URL         string `arg:"env:URL,separate,required"`
-	MaxRPS      int64  `arg:"env:MAX_RPS,required"`
-	MinWorkers  int64  `arg:"env:MIN_WORKERS,required"`
-	MaxWorkers  int64  `arg:"env:MAX_WORKERS,required"`
-	MaxRequests int64  `arg:"env:MAX_REQUESTS"`
+	URLs        []string `arg:"-u,env:urls,separate,required"` // example: -u http://localhost:8080 -u http://localhost:8081
+	MaxRPS      int64    `arg:"env:MAX_RPS" default:"1000"`
+	MinWorkers  int64    `arg:"env:MIN_WORKERS" default:"1"`
+	MaxWorkers  int64    `arg:"env:MAX_WORKERS" default:"100"`
+	MaxRequests int64    `arg:"env:MAX_REQUESTS"`
+
+	// RequestHeaders is add user request headers to each request (for example x-access-token).
+	RequestHeaders map[string]string `arg:"env:REQUEST_HEADERS"`
+	// AddTimestampToUrl is add unique timestamp in milliseconds value to each URL (commonly for avoid HTTP cache).
+	AddTimestampToUrl bool `arg:"env:ADD_TIMESTAMP_TO_URL"`
 
 	// Duration of application operation.
-	Duration      string `arg:"env:DURATION" default:"10m"`
+	Duration      string `arg:"env:DURATION" default:"1m"`
 	DurationValue time.Duration
 
 	// Stages is a number of parts by which will be separated output table.
-	Stages int64 `arg:"-s,env:NUM_STAGES"                    default:"1"`
+	Stages int64 `arg:"-s,env:NUM_STAGES" default:"1"`
 	// LogFile is a path to file into which will be redirected logs.
 	LogFile string `arg:"-l,env:LOG_FILE"`
 	// LogHeaders is a slice of headers which must be caught on request error.
@@ -22,8 +27,6 @@ type Config struct {
 	// ExpectedResponseData is string which contains expected response data.
 	// If it does not match, request will be marked as failed.
 	ExpectedResponseData string `arg:"-e,env:EXPECTED_RESPONSE_DATA"`
-	// AddTimestampToUrl is add unique timestamp in milliseconds value to each URL (commonly for avoid HTTP cache).
-	AddTimestampToUrl bool `arg:"env:ADD_TIMESTAMP_TO_URL"`
 
 	// PoolInitSize is httpclient pool init. size.
 	PoolInitSize int64 `arg:"-i,env:HTTP_CLIENT_POOL_INIT_SIZE" default:"32"`
