@@ -20,7 +20,6 @@ func (m *InitRequestMiddleware) InitRequest(next middleware.RequestModifier) mid
 		if err != nil {
 			return nil, err
 		}
-
 		return next.Do(req)
 	})
 }
