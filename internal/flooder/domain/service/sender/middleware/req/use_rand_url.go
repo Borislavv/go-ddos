@@ -9,16 +9,16 @@ import (
 	"time"
 )
 
-type RandUrlMiddleware struct {
+type UseRandUrlMiddleware struct {
 	urls   []string
 	logger logservice.Logger
 }
 
-func NewRandUrlMiddleware(URLs []string, logger logservice.Logger) *RandUrlMiddleware {
-	return &RandUrlMiddleware{urls: URLs, logger: logger}
+func NewUseRandUrlMiddleware(URLs []string, logger logservice.Logger) *UseRandUrlMiddleware {
+	return &UseRandUrlMiddleware{urls: URLs, logger: logger}
 }
 
-func (m *RandUrlMiddleware) AddRandUrl(next httpclientmiddleware.RequestModifier) httpclientmiddleware.RequestModifier {
+func (m *UseRandUrlMiddleware) UseRandUrl(next httpclientmiddleware.RequestModifier) httpclientmiddleware.RequestModifier {
 	return httpclientmiddleware.RequestModifierFunc(func(req *http.Request) (*http.Response, error) {
 		if req != nil {
 			random := rand.New(rand.NewSource(time.Now().UnixNano()))

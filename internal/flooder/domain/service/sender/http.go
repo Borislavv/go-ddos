@@ -47,7 +47,7 @@ func (s *Http) addMiddlewares() {
 func (s *Http) requestMiddlewares() []httpclientmiddleware.RequestMiddlewareFunc {
 	mdw := []httpclientmiddleware.RequestMiddlewareFunc{
 		reqmiddleware.NewInitRequestMiddleware(s.logger).InitRequest,
-		reqmiddleware.NewRandUrlMiddleware(s.cfg.URLs, s.logger).AddRandUrl,
+		reqmiddleware.NewUseRandUrlMiddleware(s.cfg.URLs, s.logger).UseRandUrl,
 	}
 
 	if s.cfg.AddTimestampToUrl {
