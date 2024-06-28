@@ -3,10 +3,11 @@ package config
 import "time"
 
 type Config struct {
-	URL        string `arg:"env:URL,separate,required"`
-	MaxRPS     int64  `arg:"env:MAX_RPS,required"`
-	MinWorkers int64  `arg:"env:MIN_WORKERS,required"`
-	MaxWorkers int64  `arg:"env:MAX_WORKERS,required"`
+	URL         string `arg:"env:URL,separate,required"`
+	MaxRPS      int64  `arg:"env:MAX_RPS,required"`
+	MinWorkers  int64  `arg:"env:MIN_WORKERS,required"`
+	MaxWorkers  int64  `arg:"env:MAX_WORKERS,required"`
+	MaxRequests int64  `arg:"env:MAX_REQUESTS"`
 
 	// Duration of application operation.
 	Duration      string `arg:"env:DURATION" default:"10m"`
@@ -21,7 +22,7 @@ type Config struct {
 	// ExpectedResponseData is string which contains expected response data.
 	// If it does not match, request will be marked as failed.
 	ExpectedResponseData string `arg:"-e,env:EXPECTED_RESPONSE_DATA"`
-	// AddTimestampToUrl is adds unique timestamp in milliseconds value to each URL (commonly for avoid HTTP cache).
+	// AddTimestampToUrl is add unique timestamp in milliseconds value to each URL (commonly for avoid HTTP cache).
 	AddTimestampToUrl bool `arg:"env:ADD_TIMESTAMP_TO_URL"`
 
 	// PoolInitSize is httpclient pool init. size.
