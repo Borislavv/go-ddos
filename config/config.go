@@ -1,6 +1,11 @@
 package config
 
-import "time"
+import (
+	"fmt"
+	httpclientconfig "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
+	"net/url"
+	"time"
+)
 
 type Config struct {
 	URLs        []string `arg:"-u,env:urls,separate,required"` // example: -u http://localhost:8080 -u http://localhost:8081
@@ -96,4 +101,42 @@ type Config struct {
 	//	close_by_avg_duration - for this case will be use value of TargetAvgDuration (total reqs. duration / total reqs.).
 	//		If the TargetAvgDuration is above the current average requests duration, the workers will be closing.
 	CloseVoters []string `arg:"separate,env:REQ_SENDER_CLOSE_VOTERS"`
+}
+
+func (cfg *Config) Validate() {
+	var errs string
+	for _, u := range cfg.URLs {
+		_, err := url.ParseRequestURI(u)
+		if err != nil {
+			errs += fmt.Sprintf("%v\n", err.Error())
+		}
+	}
+	if errs != "" {
+		panic(errs)
+	}
+
+	testDuration, err := time.ParseDuration(cfg.Duration)
+	if err != nil {
+		panic(err)
+	}
+	cfg.DurationValue = testDuration
+
+	targetAvgSuccessRequestsDuration, err := time.ParseDuration(cfg.TargetAvgSuccessRequestsDuration)
+	if err != nil {
+		panic(err)
+	}
+	cfg.TargetAvgSuccessRequestsDurationValue = targetAvgSuccessRequestsDuration
+
+	reqSenderSpawnInterval, err := time.ParseDuration(cfg.SpawnInterval)
+	if err != nil {
+		panic(err)
+	}
+	cfg.SpawnIntervalValue = reqSenderSpawnInterval
+}
+
+func (cfg *Config) HttpClinePoolConfig() *httpclientconfig.Config {
+	return &httpclientconfig.Config{
+		PoolInitSize: cfg.PoolInitSize,
+		PoolMaxSize:  cfg.PoolMaxSize,
+	}
 }

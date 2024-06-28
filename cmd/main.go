@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/Borislavv/go-ddos/config"
 	displayservice "github.com/Borislavv/go-ddos/internal/display/domain/service"
 	ddosservice "github.com/Borislavv/go-ddos/internal/flooder/app"
@@ -16,7 +15,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"sync"
@@ -27,42 +25,8 @@ import (
 func initCfg() (*config.Config, *httpclientconfig.Config) {
 	cfg := &config.Config{}
 	arg.MustParse(cfg)
-
-	var errs string
-	for _, u := range cfg.URLs {
-		_, err := url.ParseRequestURI(u)
-		if err != nil {
-			errs += fmt.Sprintf("%v\n", err.Error())
-		}
-	}
-	if errs != "" {
-		panic(errs)
-	}
-
-	testDuration, err := time.ParseDuration(cfg.Duration)
-	if err != nil {
-		panic(err)
-	}
-	cfg.DurationValue = testDuration
-
-	targetAvgSuccessRequestsDuration, err := time.ParseDuration(cfg.TargetAvgSuccessRequestsDuration)
-	if err != nil {
-		panic(err)
-	}
-	cfg.TargetAvgSuccessRequestsDurationValue = targetAvgSuccessRequestsDuration
-
-	reqSenderSpawnInterval, err := time.ParseDuration(cfg.SpawnInterval)
-	if err != nil {
-		panic(err)
-	}
-	cfg.SpawnIntervalValue = reqSenderSpawnInterval
-
-	poolCfg := &httpclientconfig.Config{
-		PoolInitSize: cfg.PoolInitSize,
-		PoolMaxSize:  cfg.PoolMaxSize,
-	}
-
-	return cfg, poolCfg
+	cfg.Validate()
+	return cfg, cfg.HttpClinePoolConfig()
 }
 
 func handleOutput(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, renderer displayservice.Renderer) []io.Writer {
