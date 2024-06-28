@@ -44,7 +44,7 @@ func BenchmarkPooled_Do(b *testing.B) {
 	collector := statservice.NewCollectorService(ctx, logger, client, time.Minute*5, 1)
 
 	client.
-		OnReq(reqmiddleware.NewTimestampMiddleware().AddTimestamp).
+		OnReq(reqmiddleware.NewAddTimestampMiddleware().AddTimestamp).
 		OnResp(respmiddleware.NewMetricsMiddleware(logger, collector).CollectMetrics)
 
 	b.ResetTimer()
