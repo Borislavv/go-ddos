@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/Borislavv/go-ddos/config"
 	displayservice "github.com/Borislavv/go-ddos/internal/display/domain/service"
 	ddosservice "github.com/Borislavv/go-ddos/internal/flooder/app"
@@ -15,6 +16,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync"
@@ -25,6 +27,17 @@ import (
 func initCfg() (*config.Config, *httpclientconfig.Config) {
 	cfg := &config.Config{}
 	arg.MustParse(cfg)
+
+	var errs string
+	for _, u := range cfg.URLs {
+		_, err := url.ParseRequestURI(u)
+		if err != nil {
+			errs += fmt.Sprintf("%v\n", err.Error())
+		}
+	}
+	if errs != "" {
+		panic(errs)
+	}
 
 	testDuration, err := time.ParseDuration(cfg.Duration)
 	if err != nil {
