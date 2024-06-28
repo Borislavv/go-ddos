@@ -47,11 +47,15 @@ func (s *Http) addMiddlewares() {
 func (s *Http) requestMiddlewares() []httpclientmiddleware.RequestMiddlewareFunc {
 	mdw := []httpclientmiddleware.RequestMiddlewareFunc{
 		reqmiddleware.NewInitRequestMiddleware(s.logger).InitRequest,
-		reqmiddleware.NewRandUrlMiddleware([]string{s.cfg.URL}, s.logger).AddRandUrl,
+		reqmiddleware.NewRandUrlMiddleware(s.cfg.URLs, s.logger).AddRandUrl,
 	}
 
 	if s.cfg.AddTimestampToUrl {
-		mdw = append(mdw, reqmiddleware.NewTimestampMiddleware().AddTimestamp)
+		mdw = append(mdw, reqmiddleware.NewAddTimestampMiddleware().AddTimestamp)
+	}
+
+	if len(s.cfg.RequestHeaders) > 0 {
+		mdw = append(mdw, reqmiddleware.NewAddHeadersMiddlewareMiddleware(s.cfg.RequestHeaders, s.logger).AddHeaders)
 	}
 
 	return mdw
