@@ -14,8 +14,8 @@ type Config struct {
 	MaxWorkers  int64    `arg:"env:MAX_WORKERS" default:"100"`
 	MaxRequests int64    `arg:"env:MAX_REQUESTS"`
 
-	// RequestHeaders is add user request headers to each request (for example x-access-token).
-	RequestHeaders map[string]string `arg:"env:REQUEST_HEADERS"`
+	// RequestHeaders add user request headers to each request (for example x-access-token).
+	RequestHeaders map[string]string `arg:"-r,env:REQUEST_HEADERS"` // example: -r x-access-token=access-token x-country-code=us
 	// AddTimestampToUrl is add unique timestamp in milliseconds value to each URL (commonly for avoid HTTP cache).
 	AddTimestampToUrl bool `arg:"env:ADD_TIMESTAMP_TO_URL"`
 
