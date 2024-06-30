@@ -10,7 +10,7 @@ import (
 type Config struct {
 	URLs        []string `arg:"-u,env:urls,separate,required"` // example: -u http://localhost:8080 -u http://localhost:8081
 	MaxRPS      int64    `arg:"env:MAX_RPS" default:"1000"`
-	MinWorkers  int64    `arg:"env:MIN_WORKERS" default:"1"`
+	MinWorkers  int64    `arg:"env:MIN_WORKERS" default:"10"`
 	MaxWorkers  int64    `arg:"env:MAX_WORKERS" default:"100"`
 	MaxRequests int64    `arg:"env:MAX_REQUESTS"`
 
