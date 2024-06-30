@@ -42,10 +42,8 @@ func New(
 }
 
 func (f *App) Run(mwg *sync.WaitGroup) {
-	defer func() {
-		f.logger.Println("flooder.App.Run(): is closed")
-		mwg.Done()
-	}()
+	defer mwg.Done()
+	defer f.logger.Println("flooder.App.Run(): is closed")
 
 	balancerTicker := time.NewTicker(time.Millisecond * 100)
 	defer balancerTicker.Stop()
@@ -69,8 +67,8 @@ func (f *App) Run(mwg *sync.WaitGroup) {
 			case enum.Close:
 				f.manager.CloseOne()
 			case enum.Await:
+				time.Sleep(sleep)
 			}
-			time.Sleep(sleep)
 		}
 	}
 }
