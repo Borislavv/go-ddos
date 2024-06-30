@@ -5,8 +5,9 @@ import (
 	"github.com/Borislavv/go-ddos/config"
 	displayservice "github.com/Borislavv/go-ddos/internal/display/domain/service"
 	ddosservice "github.com/Borislavv/go-ddos/internal/flooder/app"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/orchestrator"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender"
-	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/worker"
 	"github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient"
 	httpclientconfig "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
@@ -74,21 +75,22 @@ func main() {
 	pl := httpclient.NewPool(ctx, poolCfg, cr)
 	defer func() { _ = pl.Close() }()
 
-	cl := statservice.NewCollectorService(ctx, lg, pl, cfg.DurationValue, cfg.Stages)
-	rr := displayservice.NewRendererService(ctx, cfg, exitCh, cl)
+	cl := statservice.NewCollectorService(lg, pl, cfg.DurationValue, cfg.Stages)
+	rr := displayservice.NewRendererService(cfg, exitCh, cl)
 	sr := sender.NewHttp(cfg, lg, pl, cl)
-	mg := workers.NewManagerService(ctx, sr, lg, cl)
-	bl := workers.NewBalancerService(ctx, cfg, lg, cl)
-	fl := ddosservice.New(ctx, cfg, lg, bl, cl, mg)
+	mg := worker.NewManagerService(ctx, sr, lg, cl)
+	bl := worker.NewBalancerService(ctx, cfg, lg, cl)
+	or := orchestrator.NewWorkersOrchestrator(cfg, mg, bl, lg)
+	fl := ddosservice.New(cfg, or, lg)
 
 	log.SetOutput(logservice.NewMultiWriter(logWriters(ctx, lwg, cfg, rr)...))
 
 	wg := &sync.WaitGroup{}
 	wg.Add(3)
 	defer wg.Wait()
-	go rr.Run(wg)
-	go cl.Run(wg)
-	go fl.Run(wg)
+	go rr.Run(ctx, wg)
+	go cl.Run(ctx, wg)
+	go fl.Run(ctx, wg)
 
 	select {
 	case <-exitCh:
