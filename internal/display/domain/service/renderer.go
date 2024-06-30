@@ -35,7 +35,6 @@ var (
 )
 
 type RendererService struct {
-	ctx       context.Context
 	cfg       *config.Config
 	exitCh    chan<- os.Signal
 	collector statservice.Collector
@@ -68,13 +67,11 @@ type RendererService struct {
 }
 
 func NewRendererService(
-	ctx context.Context,
 	cfg *config.Config,
 	exitCh chan<- os.Signal,
 	collector statservice.Collector,
 ) *RendererService {
 	r := &RendererService{
-		ctx:       ctx,
 		cfg:       cfg,
 		exitCh:    exitCh,
 		collector: collector,
@@ -85,7 +82,7 @@ func NewRendererService(
 	return r
 }
 
-func (r *RendererService) Run(wg *sync.WaitGroup) {
+func (r *RendererService) Run(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	defer func() {
@@ -148,7 +145,7 @@ func (r *RendererService) Run(wg *sync.WaitGroup) {
 	eventCh := ui.PollEvents()
 	for {
 		select {
-		case <-r.ctx.Done():
+		case <-ctx.Done():
 			return
 		case e := <-eventCh:
 			switch e.ID {
