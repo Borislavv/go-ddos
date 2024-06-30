@@ -22,8 +22,8 @@ func NewAllVoters(
 }
 
 func (v *AllVoters) For() (action enum.Action, sleep time.Duration) {
-	var slpSpawn time.Duration
 	var forSpawn int
+	var slpSpawn time.Duration
 	for _, c := range v.spawnVoters {
 		w, s := c.Vote()
 		if w == enum.Check {
@@ -36,8 +36,8 @@ func (v *AllVoters) For() (action enum.Action, sleep time.Duration) {
 		forSpawn = enum.Check
 	}
 
-	var slpClose time.Duration
 	var forClose int
+	var slpClose time.Duration
 	for _, c := range v.closeVoters {
 		w, s := c.Vote()
 		if w == enum.Check {
@@ -46,7 +46,7 @@ func (v *AllVoters) For() (action enum.Action, sleep time.Duration) {
 		forClose++
 		slpClose += s
 	}
-	if forClose < len(v.spawnVoters) {
+	if forClose < len(v.closeVoters) {
 		forClose = enum.Check
 	}
 
