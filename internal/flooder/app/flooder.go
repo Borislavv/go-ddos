@@ -7,6 +7,7 @@ import (
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
+	"math"
 	"sync"
 	"time"
 )
@@ -49,7 +50,7 @@ func (f *App) Run(mwg *sync.WaitGroup) {
 	balancerTicker := time.NewTicker(time.Millisecond * 100)
 	defer balancerTicker.Stop()
 
-	reqSendTicker := time.NewTicker(time.Second / time.Duration(float64(f.cfg.MaxRPS)*(1+f.cfg.ToleranceCoefficient)))
+	reqSendTicker := time.NewTicker(time.Duration(math.Ceil(float64(time.Second) / float64(f.cfg.MaxRPS))))
 	defer reqSendTicker.Stop()
 
 	wg := &sync.WaitGroup{}
