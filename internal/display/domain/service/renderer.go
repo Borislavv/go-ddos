@@ -40,7 +40,6 @@ type RendererService struct {
 	exitCh    chan<- os.Signal
 	collector statservice.Collector
 
-	fd  *os.File
 	log *widgets.List
 	cnt *widgets.PieChart
 
@@ -492,7 +491,6 @@ func (r *RendererService) Write(p []byte) (n int, err error) {
 		r.log.Rows = r.log.Rows[1:]
 	}
 	r.log.Rows = append(r.log.Rows, string(p))
-	_, _ = r.fd.Write(p)
 	return len(p), nil
 }
 
