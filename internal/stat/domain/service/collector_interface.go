@@ -1,13 +1,14 @@
 package statservice
 
 import (
+	"context"
 	"github.com/Borislavv/go-ddos/internal/stat/domain/model"
 	"sync"
 	"time"
 )
 
 type Collector interface {
-	Run(wg *sync.WaitGroup)
+	Run(ctx context.Context, wg *sync.WaitGroup)
 
 	Metric(stage int64) (metric *statmodel.Metrics, found bool)
 	Stages() int64
