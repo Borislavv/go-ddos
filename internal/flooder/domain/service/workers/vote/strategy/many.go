@@ -22,16 +22,16 @@ func NewManyVoters(
 }
 
 func (v *ManyVoters) For() (action enum.Action, sleep time.Duration) {
-	var slpSpawn time.Duration
 	var forSpawn enum.Weight
+	var slpSpawn time.Duration
 	for _, c := range v.spawnVoters {
 		w, s := c.Vote()
 		forSpawn += w
 		slpSpawn += s
 	}
 
-	var slpClose time.Duration
 	var forClose enum.Weight
+	var slpClose time.Duration
 	for _, c := range v.closeVoters {
 		w, s := c.Vote()
 		forClose += w
