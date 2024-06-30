@@ -29,7 +29,7 @@ func initCfg() (*config.Config, *httpclientconfig.Config) {
 	return cfg, cfg.HttpClinePoolConfig()
 }
 
-func handleOutput(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, renderer displayservice.Renderer) []io.Writer {
+func logWriters(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, renderer displayservice.Renderer) []io.Writer {
 	var writers []io.Writer
 	writers = append(writers, renderer)
 
@@ -81,7 +81,7 @@ func main() {
 	bl := workers.NewBalancerService(ctx, cfg, lg, cl)
 	fl := ddosservice.New(ctx, cfg, lg, bl, cl, mg)
 
-	log.SetOutput(logservice.NewMultiWriter(handleOutput(ctx, lwg, cfg, rr)...))
+	log.SetOutput(logservice.NewMultiWriter(logWriters(ctx, lwg, cfg, rr)...))
 
 	wg := &sync.WaitGroup{}
 	wg.Add(3)
