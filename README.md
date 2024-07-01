@@ -1,6 +1,6 @@
 # DDOS/Stress tester
  
-![image](https://github.com/Borislavv/go-ddos/assets/50691459/4f752ffe-8dae-4aba-b753-3a154ffaa610)
+<img width="1705" alt="image" src="https://github.com/Borislavv/go-ddos/assets/50691459/03b4fd23-de52-491d-b17e-e7bea60ae6c1">
 
 ## Configuration:
 ```
