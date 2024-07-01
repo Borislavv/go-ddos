@@ -1,4 +1,4 @@
-package workers
+package worker
 
 import (
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"

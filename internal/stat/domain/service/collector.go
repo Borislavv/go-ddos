@@ -11,8 +11,7 @@ import (
 )
 
 type CollectorService struct {
-	ctx context.Context
-	mu  *sync.RWMutex
+	mu *sync.RWMutex
 
 	// dependencies
 	logger     logservice.Logger
@@ -33,14 +32,12 @@ type CollectorService struct {
 }
 
 func NewCollectorService(
-	ctx context.Context,
 	logger logservice.Logger,
 	httpClient httpclient.Pooled,
 	duration time.Duration,
 	stages int64,
 ) *CollectorService {
 	c := &CollectorService{
-		ctx:                    ctx,
 		logger:                 logger,
 		startedAt:              time.Now(),
 		lastSpawnByInterval:    time.Now(),
@@ -62,7 +59,7 @@ func NewCollectorService(
 	return c
 }
 
-func (c *CollectorService) Run(wg *sync.WaitGroup) {
+func (c *CollectorService) Run(ctx context.Context, wg *sync.WaitGroup) {
 	defer func() {
 		c.logger.Println("stat.CollectorService.Run(): is closed")
 		wg.Done()
@@ -73,7 +70,7 @@ func (c *CollectorService) Run(wg *sync.WaitGroup) {
 
 	for {
 		select {
-		case <-c.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-refreshTicker.C:
 			c.setRPS()

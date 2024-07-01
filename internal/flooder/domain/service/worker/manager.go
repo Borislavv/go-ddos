@@ -1,4 +1,4 @@
-package workers
+package worker
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 type ManagerService struct {
 	ctx context.Context
+	wg  *sync.WaitGroup
 
 	sender    *sender.Http
 	logger    logservice.Logger
@@ -28,6 +29,7 @@ func NewManagerService(
 ) *ManagerService {
 	return &ManagerService{
 		ctx:       ctx,
+		wg:        &sync.WaitGroup{},
 		sender:    sender,
 		logger:    logger,
 		collector: collector,
@@ -35,12 +37,12 @@ func NewManagerService(
 	}
 }
 
-func (m *ManagerService) SpawnOne(ctx context.Context, wg *sync.WaitGroup, sendTicker *time.Ticker) {
-	wg.Add(1)
+func (m *ManagerService) SpawnOne(ctx context.Context, sendTicker *time.Ticker) {
+	m.wg.Add(1)
 	go func() {
 		defer func() {
 			m.collector.RemoveWorker()
-			wg.Done()
+			m.wg.Done()
 		}()
 		m.collector.AddWorker()
 		for {
@@ -64,9 +66,9 @@ func (m *ManagerService) CloseOne() {
 	}
 }
 
-func (m *ManagerService) CloseAll(cancel context.CancelFunc, wg *sync.WaitGroup) {
+func (m *ManagerService) CloseAll(cancel context.CancelFunc) {
 	cancel()
-	wg.Wait()
+	m.wg.Wait()
 	close(m.closeCh)
 	m.logger.Println("workers.Manager.CloseAll(): all spawned workers are closed")
 }

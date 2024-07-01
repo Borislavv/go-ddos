@@ -1,15 +1,15 @@
-package workers
+package worker
 
 import (
 	"context"
 	"errors"
 	"github.com/Borislavv/go-ddos/config"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
-	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/vote"
-	votestrategy "github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/vote/strategy"
-	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter"
-	closevoter "github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter/close"
-	spawnvoter "github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers/voter/spawn"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/worker/vote"
+	votestrategy "github.com/Borislavv/go-ddos/internal/flooder/domain/service/worker/vote/strategy"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/worker/voter"
+	closevoter "github.com/Borislavv/go-ddos/internal/flooder/domain/service/worker/voter/close"
+	spawnvoter "github.com/Borislavv/go-ddos/internal/flooder/domain/service/worker/voter/spawn"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"time"

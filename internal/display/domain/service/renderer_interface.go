@@ -1,8 +1,11 @@
 package displayservice
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
 type Renderer interface {
-	Run(wg *sync.WaitGroup)
+	Run(ctx context.Context, wg *sync.WaitGroup)
 	Write(p []byte) (n int, err error)
 }

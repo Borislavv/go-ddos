@@ -1,20 +1,30 @@
 package config
 
-import "time"
+import (
+	"fmt"
+	httpclientconfig "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
+	"net/url"
+	"time"
+)
 
 type Config struct {
-	URL         string `arg:"env:URL,separate,required"`
-	MaxRPS      int64  `arg:"env:MAX_RPS,required"`
-	MinWorkers  int64  `arg:"env:MIN_WORKERS,required"`
-	MaxWorkers  int64  `arg:"env:MAX_WORKERS,required"`
-	MaxRequests int64  `arg:"env:MAX_REQUESTS"`
+	URLs        []string `arg:"-u,env:urls,separate,required"` // example: -u http://localhost:8080 -u http://localhost:8081
+	MaxRPS      int64    `arg:"env:MAX_RPS" default:"1000"`
+	MinWorkers  int64    `arg:"env:MIN_WORKERS" default:"10"`
+	MaxWorkers  int64    `arg:"env:MAX_WORKERS" default:"100"`
+	MaxRequests int64    `arg:"env:MAX_REQUESTS"`
+
+	// RequestHeaders add user request headers to each request (for example x-access-token).
+	RequestHeaders map[string]string `arg:"-r,env:REQUEST_HEADERS"` // example: -r x-access-token=access-token x-country-code=us
+	// AddTimestampToUrl is add unique timestamp in milliseconds value to each URL (commonly for avoid HTTP cache).
+	AddTimestampToUrl bool `arg:"env:ADD_TIMESTAMP_TO_URL"`
 
 	// Duration of application operation.
-	Duration      string `arg:"env:DURATION" default:"10m"`
+	Duration      string `arg:"env:DURATION" default:"1m"`
 	DurationValue time.Duration
 
 	// Stages is a number of parts by which will be separated output table.
-	Stages int64 `arg:"-s,env:NUM_STAGES"                    default:"1"`
+	Stages int64 `arg:"-s,env:NUM_STAGES" default:"1"`
 	// LogFile is a path to file into which will be redirected logs.
 	LogFile string `arg:"-l,env:LOG_FILE"`
 	// LogHeaders is a slice of headers which must be caught on request error.
@@ -22,8 +32,6 @@ type Config struct {
 	// ExpectedResponseData is string which contains expected response data.
 	// If it does not match, request will be marked as failed.
 	ExpectedResponseData string `arg:"-e,env:EXPECTED_RESPONSE_DATA"`
-	// AddTimestampToUrl is add unique timestamp in milliseconds value to each URL (commonly for avoid HTTP cache).
-	AddTimestampToUrl bool `arg:"env:ADD_TIMESTAMP_TO_URL"`
 
 	// PoolInitSize is httpclient pool init. size.
 	PoolInitSize int64 `arg:"-i,env:HTTP_CLIENT_POOL_INIT_SIZE" default:"32"`
@@ -93,4 +101,42 @@ type Config struct {
 	//	close_by_avg_duration - for this case will be use value of TargetAvgDuration (total reqs. duration / total reqs.).
 	//		If the TargetAvgDuration is above the current average requests duration, the workers will be closing.
 	CloseVoters []string `arg:"separate,env:REQ_SENDER_CLOSE_VOTERS"`
+}
+
+func (cfg *Config) Validate() {
+	var errs string
+	for _, u := range cfg.URLs {
+		_, err := url.ParseRequestURI(u)
+		if err != nil {
+			errs += fmt.Sprintf("%v\n", err.Error())
+		}
+	}
+	if errs != "" {
+		panic(errs)
+	}
+
+	testDuration, err := time.ParseDuration(cfg.Duration)
+	if err != nil {
+		panic(err)
+	}
+	cfg.DurationValue = testDuration
+
+	targetAvgSuccessRequestsDuration, err := time.ParseDuration(cfg.TargetAvgSuccessRequestsDuration)
+	if err != nil {
+		panic(err)
+	}
+	cfg.TargetAvgSuccessRequestsDurationValue = targetAvgSuccessRequestsDuration
+
+	reqSenderSpawnInterval, err := time.ParseDuration(cfg.SpawnInterval)
+	if err != nil {
+		panic(err)
+	}
+	cfg.SpawnIntervalValue = reqSenderSpawnInterval
+}
+
+func (cfg *Config) HttpClinePoolConfig() *httpclientconfig.Config {
+	return &httpclientconfig.Config{
+		PoolInitSize: cfg.PoolInitSize,
+		PoolMaxSize:  cfg.PoolMaxSize,
+	}
 }

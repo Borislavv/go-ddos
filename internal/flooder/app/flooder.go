@@ -3,73 +3,34 @@ package flooder
 import (
 	"context"
 	ddos "github.com/Borislavv/go-ddos/config"
-	"github.com/Borislavv/go-ddos/internal/flooder/domain/enum"
-	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/workers"
+	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/orchestrator"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
-	statservice "github.com/Borislavv/go-ddos/internal/stat/domain/service"
 	"sync"
-	"time"
 )
 
 type App struct {
-	ctx       context.Context
-	mu        *sync.RWMutex
-	cfg       *ddos.Config
-	manager   workers.Manager
-	balancer  workers.Balancer
-	logger    logservice.Logger
-	collector statservice.Collector
+	cfg          *ddos.Config
+	orchestrator orchestrator.Orchestrator
+	logger       logservice.Logger
 }
 
 func New(
-	ctx context.Context,
 	cfg *ddos.Config,
+	orchestrator orchestrator.Orchestrator,
 	logger logservice.Logger,
-	reqBalancer workers.Balancer,
-	collector statservice.Collector,
-	manager workers.Manager,
 ) *App {
 	return &App{
-		mu:        &sync.RWMutex{},
-		ctx:       ctx,
-		cfg:       cfg,
-		logger:    logger,
-		manager:   manager,
-		collector: collector,
-		balancer:  reqBalancer,
+		cfg:          cfg,
+		logger:       logger,
+		orchestrator: orchestrator,
 	}
 }
 
-func (f *App) Run(mwg *sync.WaitGroup) {
-	defer func() {
-		f.logger.Println("flooder.App.Run(): is closed")
-		mwg.Done()
-	}()
-
-	balancerTicker := time.NewTicker(time.Millisecond * 100)
-	defer balancerTicker.Stop()
-
-	reqSendTicker := time.NewTicker(time.Second / time.Duration(float64(f.cfg.MaxRPS)*(1+f.cfg.ToleranceCoefficient)))
-	defer reqSendTicker.Stop()
+func (f *App) Run(ctx context.Context, mwg *sync.WaitGroup) {
+	defer mwg.Done()
+	defer f.logger.Println("flooder.App.Run(): is closed")
 
 	wg := &sync.WaitGroup{}
-	ctx, cancel := context.WithCancel(f.ctx)
-
-	for {
-		select {
-		case <-f.ctx.Done():
-			f.manager.CloseAll(cancel, wg)
-			return
-		case <-balancerTicker.C:
-			action, sleep := f.balancer.CurrentAction()
-			switch action {
-			case enum.Spawn:
-				f.manager.SpawnOne(ctx, wg, reqSendTicker)
-			case enum.Close:
-				f.manager.CloseOne()
-			case enum.Await:
-			}
-			time.Sleep(sleep)
-		}
-	}
+	defer wg.Wait()
+	go f.orchestrator.Run(ctx, wg)
 }

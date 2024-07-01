@@ -9,14 +9,14 @@ import (
 
 const Timestamp = "Timestamp"
 
-type TimestampMiddleware struct {
+type AddTimestampMiddleware struct {
 }
 
-func NewTimestampMiddleware() *TimestampMiddleware {
-	return &TimestampMiddleware{}
+func NewAddTimestampMiddleware() *AddTimestampMiddleware {
+	return &AddTimestampMiddleware{}
 }
 
-func (m *TimestampMiddleware) AddTimestamp(next httpclientmiddleware.RequestModifier) httpclientmiddleware.RequestModifier {
+func (m *AddTimestampMiddleware) AddTimestamp(next httpclientmiddleware.RequestModifier) httpclientmiddleware.RequestModifier {
 	return httpclientmiddleware.RequestModifierFunc(func(req *http.Request) (*http.Response, error) {
 		if req != nil {
 			copyValues := req.URL.Query()
