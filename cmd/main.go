@@ -71,13 +71,10 @@ func main() {
 	go lg.Run(lwg)
 	defer func() { _ = lg.Close() }()
 
-	cr := func() *http.Client { return &http.Client{Timeout: time.Minute} }
-	pl := httpclient.NewPool(ctx, poolCfg, cr)
-	defer func() { _ = pl.Close() }()
-
+	pl := httpclient.NewPool(poolCfg, func() *http.Client { return &http.Client{Timeout: time.Minute} })
 	cl := statservice.NewCollectorService(lg, pl, cfg.DurationValue, cfg.Stages)
 	rr := displayservice.NewRendererService(cfg, exitCh, cl)
-	sr := sender.NewHttp(cfg, lg, pl, cl)
+	sr := sender.NewHttp(ctx, cfg, lg, pl, cl)
 	mg := worker.NewManagerService(ctx, sr, lg, cl)
 	bl := worker.NewBalancerService(ctx, cfg, lg, cl)
 	or := orchestrator.NewWorkersOrchestrator(cfg, mg, bl, lg)
