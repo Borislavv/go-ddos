@@ -1,9 +1,9 @@
 package httpclient
 
 import (
-	"context"
 	"github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
 	"github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
+	httpclientmodel "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/model"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -27,10 +27,7 @@ func TestPooled_Do(t *testing.T) {
 		PoolMaxSize:  1024,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	client := NewPool(ctx, cfg, func() *http.Client {
+	client := NewPool(cfg, func() *http.Client {
 		return &http.Client{Timeout: time.Minute}
 	})
 	defer func() { _ = client.Close() }()
@@ -73,7 +70,7 @@ func TestPooled_Use(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client := NewPool(context.Background(), cfg, func() *http.Client {
+	client := NewPool(cfg, func() *http.Client {
 		return &http.Client{Timeout: time.Minute}
 	})
 	defer func() { _ = client.Close() }()
@@ -99,15 +96,15 @@ func TestPooled_Use(t *testing.T) {
 		).
 		OnResp(
 			func(next httpclientmiddleware.ResponseHandler) httpclientmiddleware.ResponseHandler {
-				return httpclientmiddleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
+				return httpclientmiddleware.ResponseHandlerFunc(func(resp *httpclientmodel.Response) *httpclientmodel.Response {
 					counter.Responses++
-					return next.Handle(resp, err)
+					return next.Handle(resp)
 				})
 			},
 			func(next httpclientmiddleware.ResponseHandler) httpclientmiddleware.ResponseHandler {
-				return httpclientmiddleware.ResponseHandlerFunc(func(resp *http.Response, err error) (*http.Response, error) {
+				return httpclientmiddleware.ResponseHandlerFunc(func(resp *httpclientmodel.Response) *httpclientmodel.Response {
 					counter.Responses++
-					return next.Handle(resp, err)
+					return next.Handle(resp)
 				})
 			},
 		)
