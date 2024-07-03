@@ -1,40 +1,34 @@
 package httpclient
 
 import (
-	"context"
 	config "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/config"
 	middleware "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/middleware"
 	model "github.com/Borislavv/go-ddos/internal/flooder/infrastructure/httpclient/model"
 	"net/http"
+	"runtime"
 	"sync/atomic"
 )
 
 type CancelFunc func()
 
 type Pool struct {
-	ctx     context.Context
 	cfg     *config.Config
 	pool    chan *http.Client
 	creator func() *http.Client
-	cancel  context.CancelFunc
 	req     middleware.RequestModifier
 	resp    middleware.ResponseHandler
 	conns   int64
 }
 
-func NewPool(ctx context.Context, cfg *config.Config, creator func() *http.Client) *Pool {
+func NewPool(cfg *config.Config, creator func() *http.Client) *Pool {
 	if cfg.PoolInitSize > cfg.PoolMaxSize {
 		cfg.PoolInitSize = cfg.PoolMaxSize
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-
 	p := &Pool{
-		ctx:     ctx,
 		cfg:     cfg,
 		pool:    make(chan *http.Client, cfg.PoolMaxSize),
 		creator: creator,
-		cancel:  cancel,
 	}
 
 	for i := int64(0); i < cfg.PoolInitSize; i++ {
@@ -99,8 +93,17 @@ func (p *Pool) get() *http.Client {
 	case c := <-p.pool:
 		return c
 	default:
-		atomic.AddInt64(&p.conns, 1)
-		return p.creator()
+		for {
+			conns := atomic.LoadInt64(&p.conns)
+			if conns >= p.cfg.PoolMaxSize {
+				break
+			}
+
+			if atomic.CompareAndSwapInt64(&p.conns, conns, conns+1) {
+				return p.creator()
+			}
+		}
+		return <-p.pool
 	}
 }
 
@@ -108,11 +111,6 @@ func (p *Pool) put(c *http.Client) {
 	select {
 	case p.pool <- c:
 	default:
+		runtime.Gosched()
 	}
-}
-
-func (p *Pool) Close() error {
-	p.cancel()
-	close(p.pool)
-	return nil
 }
