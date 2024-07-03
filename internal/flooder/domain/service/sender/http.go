@@ -1,6 +1,7 @@
 package sender
 
 import (
+	"context"
 	"github.com/Borislavv/go-ddos/config"
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender/middleware/req"
 	respmiddleware "github.com/Borislavv/go-ddos/internal/flooder/domain/service/sender/middleware/resp"
@@ -12,6 +13,7 @@ import (
 )
 
 type Http struct {
+	ctx        context.Context
 	cfg        *config.Config
 	logger     logservice.Logger
 	httpClient httpclient.Pooled
@@ -19,12 +21,14 @@ type Http struct {
 }
 
 func NewHttp(
+	ctx context.Context,
 	cfg *config.Config,
 	logger logservice.Logger,
 	httpClient httpclient.Pooled,
 	collector statservice.Collector,
 ) *Http {
 	s := &Http{
+		ctx:        ctx,
 		cfg:        cfg,
 		logger:     logger,
 		httpClient: httpClient,
@@ -46,7 +50,7 @@ func (s *Http) addMiddlewares() {
 
 func (s *Http) requestMiddlewares() []httpclientmiddleware.RequestMiddlewareFunc {
 	mdw := []httpclientmiddleware.RequestMiddlewareFunc{
-		reqmiddleware.NewInitRequestMiddleware(s.logger).InitRequest,
+		reqmiddleware.NewInitRequestMiddleware(s.ctx, s.logger).InitRequest,
 		reqmiddleware.NewUseRandUrlMiddleware(s.cfg.URLs, s.logger).UseRandUrl,
 	}
 
