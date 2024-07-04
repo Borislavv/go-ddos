@@ -7,7 +7,6 @@ import (
 	"github.com/Borislavv/go-ddos/internal/flooder/domain/service/worker"
 	logservice "github.com/Borislavv/go-ddos/internal/log/domain/service"
 	"math"
-	"sync"
 	"time"
 )
 
@@ -32,8 +31,7 @@ func NewWorkersOrchestrator(
 	}
 }
 
-func (o *WorkersOrchestrator) Run(ctx context.Context, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (o *WorkersOrchestrator) Run(ctx context.Context) {
 	defer o.logger.Println("flooder.WorkersOrchestrator.Run(): is closed")
 
 	balancerTicker := time.NewTicker(time.Millisecond * 100)
