@@ -31,6 +31,7 @@ func (f *App) Run(ctx context.Context, mwg *sync.WaitGroup) {
 	defer f.logger.Println("flooder.App.Run(): is closed")
 
 	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	defer wg.Wait()
 	go f.orchestrator.Run(ctx, wg)
 }
